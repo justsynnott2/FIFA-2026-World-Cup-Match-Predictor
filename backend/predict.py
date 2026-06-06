@@ -71,6 +71,9 @@ def _raw_predict(home_team, away_team):
     }
 
 def predict_match(home_team, away_team):
+    if home_team == away_team:
+        return {"message": "Home team and away team cannot be the same."}
+
     host_countries = ['United States', 'Mexico', 'Canada']
     home_is_host = home_team in host_countries
     away_is_host = away_team in host_countries
