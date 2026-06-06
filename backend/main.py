@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import pandas as pd
+import numpy as np
 import os
+
+from predict import predict_match
 
 app = FastAPI()
 
@@ -16,16 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the model and data
-BASE_DIR = os.path.dirname(os.path.dirname((os.path.abspath(__file__))))
-MODELS_DIR = os.path.join(BASE_DIR, 'models')
-
-model = joblib.load(os.path.join(MODELS_DIR, 'model.pkl'))
-competitive = pd.read_csv(os.path.join(MODELS_DIR, 'competitive.csv'))
-elo_ratings_df = pd.read_csv(os.path.join(MODELS_DIR, 'elo_ratings.csv'))
-home_confederation_le = joblib.load(os.path.join(MODELS_DIR, 'home_confederation_le.pkl'))
-away_confederation_le = joblib.load(os.path.join(MODELS_DIR, 'away_confederation_le.pkl'))
-
 class MatchRequest(BaseModel):
     home_team: str
     away_team: str
@@ -36,4 +29,5 @@ def root():
 
 @app.post("/predict")
 def predict(req: MatchRequest):
-    pass
+    result = predict_match(req.home_team, req.away_team)
+    return result
