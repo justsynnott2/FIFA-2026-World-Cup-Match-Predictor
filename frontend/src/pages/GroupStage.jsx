@@ -1,35 +1,9 @@
 import { useState } from 'react'
 import { fixturesByGroup, groups } from '../data/tournament'
-import { hashValue } from '../utils/prediction'
 import { predictMatch } from '../utils/api'
+import { computeStandings } from '../utils/standings'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
-
-function computeStandings(group, predictions) {
-  const fixtures = fixturesByGroup[group.id]
-  const points = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
-
-  fixtures.forEach((fixture) => {
-    const prediction = predictions[fixture.id]
-    if (!prediction) return
-    if (prediction.draw > prediction.home && prediction.draw > prediction.away) {
-      points[fixture.home.code] += 1
-      points[fixture.away.code] += 1
-    } else if (prediction.home >= prediction.away) {
-      points[fixture.home.code] += 3
-    } else {
-      points[fixture.away.code] += 3
-    }
-  })
-
-  return group.teams
-    .map((team) => ({
-      ...team,
-      points: points[team.code],
-      gd: (hashValue(team.code) % 7) - 2,
-    }))
-    .sort((a, b) => b.points - a.points || b.gd - a.gd)
-}
 
 export default function GroupStage() {
   const [expandedGroup, setExpandedGroup] = useState('')
@@ -37,6 +11,7 @@ export default function GroupStage() {
   const [predictions, setPredictions] = useState({})
   // group.id → sorted team array
   const [groupStandings, setGroupStandings] = useState({})
+  // group.id → boolean
   const [standingsLoading, setStandingsLoading] = useState({})
 
   async function handleSimulateFixture(fixture) {
@@ -178,7 +153,7 @@ export default function GroupStage() {
                         <tr>
                           <th>Team</th>
                           <th>Pts</th>
-                          <th>GD</th>
+                          <th>Win Probability</th>
                           <th>Status</th>
                         </tr>
                       </thead>
@@ -187,7 +162,7 @@ export default function GroupStage() {
                           <tr key={team.code}>
                             <td>{team.name}</td>
                             <td>{team.points}</td>
-                            <td>{team.gd > 0 ? `+${team.gd}` : team.gd}</td>
+                            <td>{team.probSum}%</td>
                             <td>{index < 2 ? 'Advances' : index === 2 ? 'Third-place watch' : 'At risk'}</td>
                           </tr>
                         ))}

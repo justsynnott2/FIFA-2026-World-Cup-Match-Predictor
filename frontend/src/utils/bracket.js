@@ -1,41 +1,25 @@
 import { groups, fixturesByGroup } from '../data/tournament'
-import { mockPrediction, hashValue } from './prediction'
-
-function computeGroupStandings(group) {
-  const fixtures = fixturesByGroup[group.id]
-  const points = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
-
-  fixtures.forEach((fixture) => {
-    const prediction = mockPrediction(fixture.home, fixture.away)
-    if (prediction.draw > prediction.home && prediction.draw > prediction.away) {
-      points[fixture.home.code] += 1
-      points[fixture.away.code] += 1
-    } else if (prediction.home >= prediction.away) {
-      points[fixture.home.code] += 3
-    } else {
-      points[fixture.away.code] += 3
-    }
-  })
-
-  return group.teams
-    .map((team) => ({
-      ...team,
-      points: points[team.code],
-      gd: (hashValue(team.code) % 7) - 2,
-    }))
-    .sort((a, b) => b.points - a.points || b.gd - a.gd)
-}
+import { predictMatch } from './api'
+import { computeStandings } from './standings'
 
 // Returns 16 R32 match objects { teamA, teamB }
 // Winners/runners-up of all 12 groups + best 8 third-place teams
-export function buildR32Seedings() {
-  const allStandings = groups.map((group) => computeGroupStandings(group))
+export async function buildR32Seedings() {
+  const allStandings = await Promise.all(
+    groups.map(async (group) => {
+      const fixtures = fixturesByGroup[group.id]
+      const predictions = await Promise.all(
+        fixtures.map((fixture) => predictMatch(fixture.home.name, fixture.away.name))
+      )
+      return computeStandings(group, predictions)
+    })
+  )
 
   const winners = allStandings.map((s) => s[0])
   const runnersUp = allStandings.map((s) => s[1])
   const bestThird = allStandings
     .map((s) => s[2])
-    .sort((a, b) => b.points - a.points || b.gd - a.gd)
+    .sort((a, b) => b.points - a.points || b.probSum - a.probSum)
     .slice(0, 8)
 
   // Groups A–L = indices 0–11

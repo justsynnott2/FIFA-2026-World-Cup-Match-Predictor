@@ -86,7 +86,7 @@ export default function TournamentBracket() {
 
     try {
       const allRounds = []
-      let currentMatches = buildR32Seedings()
+      let currentMatches = await buildR32Seedings()
 
       for (const roundName of ROUND_NAMES) {
         const results = await Promise.all(
