@@ -1,10 +1,19 @@
+import { useState, useEffect } from 'react'
 import { allTeams } from '../data/tournament'
-import { mockPrediction } from '../utils/prediction'
+import { predictMatch } from '../utils/api'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
 
 export default function Overview({ onNavigate }) {
-  const sample = mockPrediction(allTeams[0], allTeams[8])
+  const home = allTeams.find((t) => t.code === 'USA')
+  const away = allTeams.find((t) => t.code === 'BRA')
+  const [sample, setSample] = useState(null)
+
+  useEffect(() => {
+    predictMatch(home.name, away.name)
+      .then(setSample)
+      .catch(() => { }) // silently fail — card just stays blank if backend is down
+  }, [])
 
   return (
     <section className="page overview-page">
@@ -32,11 +41,13 @@ export default function Overview({ onNavigate }) {
             <strong>Model preview</strong>
           </div>
           <div className="match-title">
-            <TeamBadge team={allTeams[0]} />
+            <TeamBadge team={home} />
             <span>vs</span>
-            <TeamBadge team={allTeams[8]} />
+            <TeamBadge team={away} />
           </div>
-          <ProbabilityBars prediction={sample} home={allTeams[0]} away={allTeams[8]} />
+          {sample 
+            ?<ProbabilityBars prediction={sample} home={home} away={away} />
+            : <p className="empty-state">Loading prediction...</p>}
         </div>
 
       </div>
