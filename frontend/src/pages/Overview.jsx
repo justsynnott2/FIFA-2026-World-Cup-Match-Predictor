@@ -3,7 +3,7 @@ import { mockPrediction } from '../utils/prediction'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
 
-export default function Overview() {
+export default function Overview({ onNavigate }) {
   const sample = mockPrediction(allTeams[0], allTeams[8])
 
   return (
@@ -19,8 +19,8 @@ export default function Overview() {
             bracket path, and any custom matchup from the 48-team field.
           </p>
           <div className="hero-actions">
-            <button type="button">Try a custom match</button>
-            <button type="button" className="secondary-button">
+            <button type="button" onClick={() => onNavigate('Custom Match')}>Try a custom match</button>
+            <button type="button" className="secondary-button" onClick={() => onNavigate('Group Stage')}>
               Browse groups
             </button>
           </div>

@@ -31,7 +31,7 @@ function App() {
         </nav>
       </header>
 
-      {activeTab === 'Overview' && <Overview />}
+      {activeTab === 'Overview' && <Overview onNavigate={setActiveTab} />}
       {activeTab === 'Group Stage' && <GroupStage />}
       {activeTab === 'Tournament Bracket' && <TournamentBracket />}
       {activeTab === 'Custom Match' && <CustomMatch />}
