@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import './App.css'
 import Overview from './pages/Overview'
+import Fixtures from './pages/Fixtures'
 import GroupStage from './pages/GroupStage'
 import TournamentBracket from './pages/TournamentBracket'
 import CustomMatch from './pages/CustomMatch'
 
-const tabs = ['Overview', 'Group Stage', 'Tournament Bracket', 'Custom Match']
+const tabs = ['Overview', 'Fixtures', 'Group Stage', 'Tournament Bracket', 'Custom Match']
 
 function App() {
   const [activeTab, setActiveTab] = useState('Overview')
@@ -32,6 +33,7 @@ function App() {
       </header>
 
       {activeTab === 'Overview' && <Overview onNavigate={setActiveTab} />}
+      {activeTab === 'Fixtures' && <Fixtures />}
       {activeTab === 'Group Stage' && <GroupStage />}
       {activeTab === 'Tournament Bracket' && <TournamentBracket />}
       {activeTab === 'Custom Match' && <CustomMatch />}

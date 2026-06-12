@@ -83,11 +83,11 @@ def _get_all_fixtures():
 def get_upcoming_fixtures():
     """Returns the next 10 scheduled (not yet played) fixtures."""
     all_fixtures = _get_all_fixtures()
-    return [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_SCHEDULED'][:10]
+    return [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_SCHEDULED'][:5]
 
 
 def get_recent_results():
     """Returns the last 10 completed fixtures with final scores."""
     all_fixtures = _get_all_fixtures()
     completed_fixtures = [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_FULL_TIME']
-    return completed_fixtures[-10:]
+    return completed_fixtures[-5:]

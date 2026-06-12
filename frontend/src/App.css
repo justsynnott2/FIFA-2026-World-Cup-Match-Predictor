@@ -638,3 +638,141 @@ select {
     flex-direction: column;
   }
 }
+
+/* Fixtures page */
+.countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1.25rem 3rem rgba(16, 65, 55, 0.08);
+}
+
+.countdown-card__match {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.countdown-card__timer {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  color: var(--green);
+  letter-spacing: -0.02em;
+}
+
+.countdown-card__detail {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.fixtures-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.fixtures-column h2 {
+  margin-bottom: 1rem;
+}
+
+.fixture-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 0.5rem 1.5rem rgba(16, 65, 55, 0.05);
+}
+
+.fixture-card__meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.fixture-card__teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fixture-card__team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fixture-card__team--away {
+  flex-direction: row-reverse;
+}
+
+.fixture-card__logo {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+}
+
+.fixture-card__name {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.fixture-card__score {
+  text-align: center;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.fixture-card__vs {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Form dots - W green, L red, D gold */
+.form-dots {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.form-dot {
+  display: grid;
+  place-items: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.form-dot--w {
+  background: var(--green);
+}
+
+.form-dot--l {
+  background: var(--red);
+}
+
+.form-dot--d {
+  background: var(--gold);
+}
+
+@media (max-width: 768px) {
+  .fixtures-grid {
+    grid-template-columns: 1fr;
+  }
+}
