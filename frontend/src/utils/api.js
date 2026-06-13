@@ -1,3 +1,5 @@
+import { toModelName } from '../data/tournament'
+
 // Base URL for the FastAPI backend
 const API_BASE = 'http://localhost:8000'
 
@@ -6,7 +8,10 @@ export async function predictMatch(homeName, awayName) {
   const response = await fetch(`${API_BASE}/predict`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ home_team: homeName, away_team: awayName }),
+    body: JSON.stringify({
+      home_team: toModelName(homeName),
+      away_team: toModelName(awayName)
+    }),
   })
   if (!response.ok) throw new Error('Prediction request failed')
   const data = await response.json()
@@ -16,6 +21,13 @@ export async function predictMatch(homeName, awayName) {
     draw: Math.round(data.draw_prob * 100),
     away: Math.round(data.away_win_prob * 100),
   }
+}
+
+// Fetches all 72 group stage fixtures — both completed and upcoming — from ESPN via backend
+export async function getAllFixtures() {
+  const response = await fetch(`${API_BASE}/schedule/all`)
+  if (!response.ok) throw new Error('Failed to fetch all fixtures')
+  return response.json()
 }
 
 // Fetches the next 10 scheduled group stage fixtures from ESPN via backend

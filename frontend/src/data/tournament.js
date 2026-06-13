@@ -1,3 +1,6 @@
+// Group structure for the 2026 World Cup - 12 groups of 4 teams
+// This is the source of truth for group membership and team metadata
+// Dates, venues, and scores all come from ESPN via the backend
 export const groups = [
   {
     id: 'A',
@@ -39,7 +42,7 @@ export const groups = [
     id: 'E',
     teams: [
       { name: 'Germany', code: 'GER', confederation: 'UEFA' },
-      { name: 'Curacao', code: 'CUW', confederation: 'CONCACAF' },
+      { name: 'Curaçao', code: 'CUW', confederation: 'CONCACAF' },
       { name: 'Ivory Coast', code: 'CIV', confederation: 'CAF' },
       { name: 'Ecuador', code: 'ECU', confederation: 'CONMEBOL' },
     ],
@@ -109,45 +112,21 @@ export const groups = [
   },
 ]
 
-const groupDates = {
-  A: ['Jun 11', 'Jun 13', 'Jun 19', 'Jun 20', 'Jun 25', 'Jun 25'],
-  B: ['Jun 12', 'Jun 13', 'Jun 18', 'Jun 24', 'Jun 24', 'Jun 24'],
-  C: ['Jun 13', 'Jun 14', 'Jun 19', 'Jun 20', 'Jun 24', 'Jun 24'],
-  D: ['Jun 13', 'Jun 14', 'Jun 19', 'Jun 19', 'Jun 26', 'Jun 26'],
-  E: ['Jun 14', 'Jun 14', 'Jun 20', 'Jun 21', 'Jun 25', 'Jun 25'],
-  F: ['Jun 14', 'Jun 15', 'Jun 21', 'Jun 22', 'Jun 25', 'Jun 26'],
-  G: ['Jun 15', 'Jun 16', 'Jun 21', 'Jun 22', 'Jun 27', 'Jun 27'],
-  H: ['Jun 15', 'Jun 15', 'Jun 21', 'Jun 21', 'Jun 27', 'Jun 27'],
-  I: ['Jun 16', 'Jun 16', 'Jun 23', 'Jun 23', 'Jun 26', 'Jun 27'],
-  J: ['Jun 17', 'Jun 17', 'Jun 22', 'Jun 23', 'Jun 28', 'Jun 28'],
-  K: ['Jun 18', 'Jun 18', 'Jun 23', 'Jun 24', 'Jun 27', 'Jun 27'],
-  L: ['Jun 17', 'Jun 17', 'Jun 23', 'Jun 23', 'Jun 27', 'Jun 27'],
+// Maps ESPN team names to the exact names the prediction model expects
+// Only includes teams where the names differ between ESPN and the model's training data
+export const ESPN_TO_MODEL_NAME = {
+  'Türkiye': 'Turkey',
+  'Bosnia-Herzegovina': 'Bosnia and Herzegovina',
+  'Congo DR': 'Democratic Republic of Congo',
 }
 
-const fixturePattern = [
-  [0, 1],
-  [2, 3],
-  [0, 2],
-  [3, 1],
-  [3, 0],
-  [1, 2],
-]
+// Helper to normalize an ESPN team name to what the model expects
+// Returns the original name if no mapping exists
+export function toModelName(espnName) {
+  return ESPN_TO_MODEL_NAME[espnName] ?? espnName
+}
 
-export const fixturesByGroup = groups.reduce((fixtures, group) => {
-  fixtures[group.id] = fixturePattern.map(([homeIndex, awayIndex], index) => ({
-    id: `${group.id}-${index + 1}`,
-    group: group.id,
-    date: `${groupDates[group.id][index]}, 2026`,
-    venue: ['Mexico City', 'Toronto', 'New York/New Jersey', 'Los Angeles', 'Dallas', 'Seattle'][
-      (group.id.charCodeAt(0) + index) % 6
-    ],
-    home: group.teams[homeIndex],
-    away: group.teams[awayIndex],
-  }))
-
-  return fixtures
-}, {})
-
+// All teams as a flat array with their group id attached — used by Overview and CustomMatch
 export const allTeams = groups.flatMap((group) =>
   group.teams.map((team) => ({
     ...team,

@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from predict import predict_match
-from fixtures import get_upcoming_fixtures, get_recent_results
+from fixtures import get_all_fixtures, get_upcoming_fixtures, get_recent_results
 
 app = FastAPI()
 
@@ -33,6 +33,11 @@ def root():
 def predict(match_request: MatchRequest):
     """Predicts win/draw/loss probabilities for a given matchup."""
     return predict_match(match_request.home_team, match_request.away_team)
+
+@app.get("/schedule/all")
+def all_fixtures():
+    """Returns all group stage fixtures with current status and scores from ESPN."""
+    return get_all_fixtures()
 
 @app.get("/schedule/upcoming")
 def upcoming_fixtures():

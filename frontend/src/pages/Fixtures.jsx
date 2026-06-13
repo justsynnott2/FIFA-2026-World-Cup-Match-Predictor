@@ -133,7 +133,7 @@ export default function Fixtures() {
                     getRecentResults(),
                 ])
                 setUpcomingFixtures(upcoming)
-                setRecentResults(results)
+                setRecentResults(results.reverse()) // Show most recent first
             } catch (err) {
                 setError('Failed to load fixtures. Make sure the backend is running.')
             } finally {

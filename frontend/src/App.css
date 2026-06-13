@@ -776,3 +776,38 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+/* Inner group tab switcher */
+.group-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.group-tabs button {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.85rem;
+}
+
+/* Real score display for completed/live matches */
+.real-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* Live match indicator */
+.live-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #fff;
+  background: var(--red);
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+}

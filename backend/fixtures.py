@@ -72,7 +72,7 @@ def _fetch_all_group_stage():
     return [_normalize_event(raw_event) for raw_event in raw_events]
 
 
-def _get_all_fixtures():
+def get_all_fixtures():
     """
     Returns all group stage fixtures, using cache to avoid hammering ESPN.
     TTL is 5 minutes - short enough to reflect results soon after they happen.
@@ -82,12 +82,12 @@ def _get_all_fixtures():
 
 def get_upcoming_fixtures():
     """Returns the next 10 scheduled (not yet played) fixtures."""
-    all_fixtures = _get_all_fixtures()
+    all_fixtures = get_all_fixtures()
     return [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_SCHEDULED'][:5]
 
 
 def get_recent_results():
     """Returns the last 10 completed fixtures with final scores."""
-    all_fixtures = _get_all_fixtures()
+    all_fixtures = get_all_fixtures()
     completed_fixtures = [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_FULL_TIME']
     return completed_fixtures[-5:]
