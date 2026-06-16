@@ -78,7 +78,7 @@ def get_all_fixtures():
     Returns all group stage fixtures, using cache to avoid hammering ESPN.
     TTL is 5 minutes - short enough to reflect results soon after they happen.
     """
-    return _get_cached('all_fixtures', ttl_seconds=60, fetch_fn=_fetch_all_group_stage)
+    return _get_cached('all_fixtures', ttl_seconds=30, fetch_fn=_fetch_all_group_stage)
 
 def get_live_fixture():
     """Returns the fixture that is currently in progress."""

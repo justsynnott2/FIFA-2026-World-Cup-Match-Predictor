@@ -187,7 +187,7 @@ export default function Fixtures() {
         const interval = setInterval(async () => {
             const live = await getLiveFixtures()
             setLiveFixture(live)
-        }, 60000)
+        }, 30000)
         return () => clearInterval(interval)
     }, [liveFixture !== null])
 

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { allTeams } from '../data/tournament'
 import { predictMatch } from '../utils/api'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
 
-export default function Overview({ onNavigate }) {
+export default function Overview() {
+  const navigate = useNavigate()
   const home = allTeams.find((t) => t.code === 'USA')
   const away = allTeams.find((t) => t.code === 'BRA')
   const [sample, setSample] = useState(null)
@@ -28,8 +30,8 @@ export default function Overview({ onNavigate }) {
             bracket path, and any custom matchup from the 48-team field.
           </p>
           <div className="hero-actions">
-            <button type="button" onClick={() => onNavigate('Custom Match')}>Try a custom match</button>
-            <button type="button" className="secondary-button" onClick={() => onNavigate('Group Stage')}>
+            <button type="button" onClick={() => navigate('/custom')}>Try a custom match</button>
+            <button type="button" className="secondary-button" onClick={() => navigate('/groups')}>
               Browse groups
             </button>
           </div>
