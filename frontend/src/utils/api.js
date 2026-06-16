@@ -30,6 +30,12 @@ export async function getAllFixtures() {
   return response.json()
 }
 
+export async function getLiveFixtures() {
+  const response = await fetch(`${API_BASE}/schedule/live`)
+  if (!response.ok) throw new Error('Failed to fetch live fixtures')
+  return response.json()
+}
+
 // Fetches the next 10 scheduled group stage fixtures from ESPN via backend
 export async function getUpcomingFixtures() {
   const response = await fetch(`${API_BASE}/schedule/upcoming`)

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
+import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
 
@@ -11,16 +12,6 @@ function getGroupFixtures(group, allFixtures) {
   return allFixtures.filter(
     (fixture) => groupCodes.has(fixture.home_code) && groupCodes.has(fixture.away_code)
   )
-}
-
-// Determines if a fixture has been completed
-function isCompleted(fixture) {
-  return fixture.status === 'STATUS_FULL_TIME'
-}
-
-// Determines if a fixture is currently in progress
-function isInProgress(fixture) {
-  return fixture.status === 'STATUS_IN_PROGRESS'
 }
 
 // Standings table shared between both tabs
@@ -115,7 +106,7 @@ export default function GroupStage() {
   async function handleSimulateRemaining(group, groupFixtures) {
     setStandingsLoading((current) => ({ ...current, [group.id]: true }))
     try {
-      const nonCompleted = groupFixtures.filter((fixture) => !isCompleted(fixture))
+      const nonCompleted = groupFixtures.filter((fixture) => !isMatchCompleted(fixture.status))
       const results = await Promise.all(
         nonCompleted.map((fixture) => predictMatch(fixture.home_team, fixture.away_team))
       )

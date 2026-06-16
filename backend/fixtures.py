@@ -79,9 +79,14 @@ def get_all_fixtures():
     """
     return _get_cached('all_fixtures', ttl_seconds=300, fetch_fn=_fetch_all_group_stage)
 
+def get_live_fixture():
+    """Returns the fixture that is currently in progress."""
+    all_fixtures = get_all_fixtures()
+    live_fixtures = [fixture for fixture in all_fixtures if (fixture['status'] != 'STATUS_FULL_TIME') and (fixture['status'] != 'STATUS_SCHEDULED')]
+    return live_fixtures[0] if live_fixtures else None
 
 def get_upcoming_fixtures():
-    """Returns the next 10 scheduled (not yet played) fixtures."""
+    """Returns in-progress and upcoming scheduled fixtures (excludes completed)."""
     all_fixtures = get_all_fixtures()
     return [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_SCHEDULED'][:5]
 

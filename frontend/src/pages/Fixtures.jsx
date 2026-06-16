@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getUpcomingFixtures, getRecentResults } from '../utils/api'
+import { getLiveFixtures, getUpcomingFixtures, getRecentResults } from '../utils/api'
+import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
 
 // Converts a UTC ISO date string to a readable local time e.g. "Sat, Jun 13 · 6:00 PM"
 function formatMatchDate(isoString) {
@@ -30,7 +31,8 @@ function FormDots({ form }) {
 
 // Single fixture card used for both upcoming and results
 function FixtureCard({ fixture }) {
-    const isCompleted = fixture.status === 'STATUS_FULL_TIME'
+    const isCompleted = isMatchCompleted(fixture.status)
+    const isLive = isMatchLive(fixture.status)
 
     return (
         <article className="fixture-card">
@@ -51,11 +53,18 @@ function FixtureCard({ fixture }) {
                     <FormDots form={fixture.home_form} />
                 </div>
 
-                {/* Score or VS */}
+                {/* Score, VS, or live score */}
                 <div className="fixture-card__score">
                     {isCompleted
                         ? <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                        : <span className="fixture-card__vs">vs</span>
+                        : isLive
+                            ? (
+                                <div className="fixture-card__live">
+                                    <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                                    <span className="live-badge">LIVE</span>
+                                </div>
+                            )
+                            : <span className="fixture-card__vs">vs</span>
                     }
                 </div>
 
@@ -71,16 +80,18 @@ function FixtureCard({ fixture }) {
     )
 }
 
-// Countdown timer to the next fixture
-function Countdown({ nextFixture }) {
+// Featured match card at the top — shows live match if one is in progress, otherwise next upcoming
+function Countdown({ fixture }) {
     const [timeLeft, setTimeLeft] = useState('')
+    const isLive = isMatchLive(fixture?.status)
 
     useEffect(() => {
-        if (!nextFixture) return
+        // No countdown needed for live matches
+        if (!fixture || isLive) return
 
         function updateCountdown() {
             const now = new Date()
-            const kickoff = new Date(nextFixture.date)
+            const kickoff = new Date(fixture.date)
             const diffMs = kickoff - now
 
             if (diffMs <= 0) {
@@ -100,25 +111,50 @@ function Countdown({ nextFixture }) {
         updateCountdown()
         const interval = setInterval(updateCountdown, 1000)
         return () => clearInterval(interval)
-    }, [nextFixture])
+    }, [fixture, isLive])
 
-    if (!nextFixture) return null
+    if (!fixture) return null
 
     return (
         <div className="countdown-card">
-            <span className="eyebrow">Next fixture</span>
-            <div className="countdown-card__match">
-                <img src={nextFixture.home_logo} alt={nextFixture.home_team} className="fixture-card__logo" />
-                <span>{nextFixture.home_team} vs {nextFixture.away_team}</span>
-                <img src={nextFixture.away_logo} alt={nextFixture.away_team} className="fixture-card__logo" />
-            </div>
-            <div className="countdown-card__timer">{timeLeft}</div>
-            <div className="countdown-card__detail">{nextFixture.detail}</div>
+            {isLive ? (
+                <>
+                    <div className="countdown-card__live-header">
+                        <span className="live-badge">LIVE</span>
+                        <span className="countdown-card__clock">{fixture.detail}</span>
+                    </div>
+                    <div className="countdown-card__matchup">
+                        <div className="countdown-card__team">
+                            <img src={fixture.home_logo} alt={fixture.home_team} className="countdown-card__logo" />
+                            <span>{fixture.home_team}</span>
+                        </div>
+                        <div className="countdown-card__score">
+                            {fixture.home_score} – {fixture.away_score}
+                        </div>
+                        <div className="countdown-card__team countdown-card__team--away">
+                            <img src={fixture.away_logo} alt={fixture.away_team} className="countdown-card__logo" />
+                            <span>{fixture.away_team}</span>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <span className="eyebrow">Next Fixture</span>
+                    <div className="countdown-card__match">
+                        <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
+                        <span>{fixture.home_team} vs {fixture.away_team}</span>
+                        <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
+                    </div>
+                    <div className="countdown-card__timer">{timeLeft}</div>
+                    <div className="countdown-card__detail">{fixture.detail}</div>
+                </>
+            )}
         </div>
     )
 }
 
 export default function Fixtures() {
+    const [liveFixture, setLiveFixture] = useState(null)
     const [upcomingFixtures, setUpcomingFixtures] = useState([])
     const [recentResults, setRecentResults] = useState([])
     const [isLoading, setIsLoading] = useState(true)
@@ -127,14 +163,15 @@ export default function Fixtures() {
     useEffect(() => {
         async function fetchFixtures() {
             try {
-                // Fetch both in parallel
-                const [upcoming, results] = await Promise.all([
+                const [live, upcoming, results] = await Promise.all([
+                    getLiveFixtures(),
                     getUpcomingFixtures(),
                     getRecentResults(),
                 ])
+                setLiveFixture(live)
                 setUpcomingFixtures(upcoming)
-                setRecentResults(results.reverse()) // Show most recent first
-            } catch (err) {
+                setRecentResults(results.reverse())
+            } catch {
                 setError('Failed to load fixtures. Make sure the backend is running.')
             } finally {
                 setIsLoading(false)
@@ -155,8 +192,8 @@ export default function Fixtures() {
                 <h1>Fixtures & Results</h1>
             </div>
 
-            {/* Countdown to next match */}
-            <Countdown nextFixture={upcomingFixtures[0]} />
+            {/* Featured match — live if in progress, otherwise next upcoming */}
+            <Countdown fixture={liveFixture ?? upcomingFixtures[0]} />
 
             <div className="fixtures-grid">
 
@@ -164,7 +201,7 @@ export default function Fixtures() {
                 <div className="fixtures-column">
                     <h2>Upcoming</h2>
                     <div className="fixture-list">
-                        {upcomingFixtures.map(fixture => (
+                        {upcomingFixtures.map((fixture) => (
                             <FixtureCard key={fixture.fixture_id} fixture={fixture} />
                         ))}
                     </div>
@@ -176,7 +213,7 @@ export default function Fixtures() {
                     <div className="fixture-list">
                         {recentResults.length === 0
                             ? <p className="empty-state">No results yet.</p>
-                            : recentResults.map(fixture => (
+                            : recentResults.map((fixture) => (
                                 <FixtureCard key={fixture.fixture_id} fixture={fixture} />
                             ))
                         }

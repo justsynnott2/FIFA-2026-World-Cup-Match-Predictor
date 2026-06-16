@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from predict import predict_match
-from fixtures import get_all_fixtures, get_upcoming_fixtures, get_recent_results
+from fixtures import get_all_fixtures, get_live_fixture, get_upcoming_fixtures, get_recent_results
 
 app = FastAPI()
 
@@ -38,6 +38,11 @@ def predict(match_request: MatchRequest):
 def all_fixtures():
     """Returns all group stage fixtures with current status and scores from ESPN."""
     return get_all_fixtures()
+
+@app.get("/schedule/live")
+def live_fixture():
+    """Returns the fixture that is currently in progress, or null if none."""
+    return get_live_fixture()
 
 @app.get("/schedule/upcoming")
 def upcoming_fixtures():
