@@ -45,6 +45,7 @@ def _normalize_event(raw_event):
         'date': raw_event['date'],                                              # UTC ISO string e.g. "2026-06-13T01:00Z"
         'status': match_status,                                                 # STATUS_SCHEDULED, STATUS_FULL_TIME, etc.
         'detail': competition['status']['type'].get('detail', ''),             # Human readable e.g. "Sat, June 13th at 6:00 PM EDT"
+        'clock': competition['status'].get('displayClock', ''),               # Match clock for live matches e.g. "45:00"
         'venue': venue.get('fullName'),
         'city': venue.get('address', {}).get('city'),
         'home_team': home_team['team']['displayName'],
@@ -77,7 +78,7 @@ def get_all_fixtures():
     Returns all group stage fixtures, using cache to avoid hammering ESPN.
     TTL is 5 minutes - short enough to reflect results soon after they happen.
     """
-    return _get_cached('all_fixtures', ttl_seconds=300, fetch_fn=_fetch_all_group_stage)
+    return _get_cached('all_fixtures', ttl_seconds=60, fetch_fn=_fetch_all_group_stage)
 
 def get_live_fixture():
     """Returns the fixture that is currently in progress."""

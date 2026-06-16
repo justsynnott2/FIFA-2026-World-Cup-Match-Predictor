@@ -1,7 +1,7 @@
 // ESPN live match status strings — one for each phase of a match in progress
 const LIVE_STATUSES = [
     'STATUS_FIRST_HALF',
-    'STATUS_HALF_TIME',
+    'STATUS_HALFTIME',
     'STATUS_SECOND_HALF',
     'STATUS_EXTRA_TIME',
     'STATUS_PENALTY',

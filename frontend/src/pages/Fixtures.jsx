@@ -121,7 +121,7 @@ function Countdown({ fixture }) {
                 <>
                     <div className="countdown-card__live-header">
                         <span className="live-badge">LIVE</span>
-                        <span className="countdown-card__clock">{fixture.detail}</span>
+                        <span className="countdown-card__clock">{fixture.status === 'STATUS_HALFTIME' ? 'HT' : (fixture.clock || fixture.detail)}</span>
                     </div>
                     <div className="countdown-card__matchup">
                         <div className="countdown-card__team">
@@ -180,6 +180,16 @@ export default function Fixtures() {
 
         fetchFixtures()
     }, [])
+
+    // Poll the live fixture every 60 seconds while a match is in progress
+    useEffect(() => {
+        if (!liveFixture) return
+        const interval = setInterval(async () => {
+            const live = await getLiveFixtures()
+            setLiveFixture(live)
+        }, 60000)
+        return () => clearInterval(interval)
+    }, [liveFixture !== null])
 
     if (isLoading) return <section className="page"><p className="empty-state">Loading fixtures...</p></section>
     if (error) return <section className="page"><p className="empty-state">{error}</p></section>
