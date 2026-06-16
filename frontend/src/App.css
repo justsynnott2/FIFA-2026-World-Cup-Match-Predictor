@@ -645,8 +645,9 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  padding: 2rem;
+  padding: 2.5rem;
   margin-bottom: 1.5rem;
+  min-height: 16rem;
   text-align: center;
   border: 1px solid var(--line);
   border-radius: 0.5rem;
@@ -828,27 +829,27 @@ select {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 2rem;
+  gap: 3rem;
   width: 100%;
 }
 
 .countdown-card__team {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
   font-weight: 800;
-  font-size: 1rem;
+  font-size: 1.75rem;
   color: var(--ink);
 }
 
 .countdown-card__team--away {
-  align-items: flex-start;
+  flex-direction: row-reverse;
 }
 
 .countdown-card__logo {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 5rem;
+  height: 5rem;
   object-fit: contain;
 }
 
