@@ -224,8 +224,8 @@ export default function GroupStage() {
                     <>
                       <div className="fixture-list">
                         {groupFixtures.map((fixture) => {
-                          const completed = isCompleted(fixture)
-                          const inProgress = isInProgress(fixture)
+                          const completed = isMatchCompleted(fixture.status)
+                          const inProgress = isMatchLive(fixture.status)
                           const prediction = predictions[fixture.fixture_id]
                           const isLoadingPrediction = prediction === 'loading'
                           const isError = prediction === 'error'
@@ -280,7 +280,7 @@ export default function GroupStage() {
                       </div>
 
                       {/* Simulate remaining button — only show if there are non-completed fixtures */}
-                      {groupFixtures.some((f) => !isCompleted(f)) && (
+                      {groupFixtures.some((f) => !isMatchCompleted(f.status)) && (
                         <button
                           className="wide-button"
                           type="button"
@@ -297,7 +297,7 @@ export default function GroupStage() {
                       )}
 
                       {/* If all fixtures are completed, show real standings automatically */}
-                      {groupFixtures.every(isCompleted) && !liveStandings[group.id] && (
+                      {groupFixtures.every((f) => isMatchCompleted(f.status)) && !liveStandings[group.id] && (
                         <StandingsTable
                           standings={computeLiveStandings(group, groupFixtures, {})}
                         />
