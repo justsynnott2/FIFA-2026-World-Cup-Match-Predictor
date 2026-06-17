@@ -49,3 +49,15 @@ export async function getRecentResults() {
   if (!response.ok) throw new Error('Failed to fetch recent results')
   return response.json()
 }
+
+export async function getTeamSquad(espnId) {
+  const response = await fetch(`${API_BASE}/team/${espnId}/squad`)
+  if (!response.ok) throw new Error('Failed to fetch squad')
+  return response.json()
+}
+
+export async function getTeamNews(espnId) {
+  const response = await fetch(`${API_BASE}/team/${espnId}/news`)
+  if (!response.ok) throw new Error('Failed to fetch news')
+  return response.json()
+}

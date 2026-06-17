@@ -229,7 +229,7 @@ p {
   font-weight: 800;
 }
 
-.team-badge span {
+.team-badge span:first-child {
   display: inline-grid;
   min-width: 2.3rem;
   height: 2rem;
@@ -869,4 +869,119 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+}
+
+.team-name-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 120ms ease;
+}
+
+.team-name-link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Team Page */
+.team-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem 0 2.5rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2rem;
+}
+
+.team-hero__name {
+  max-width: none;
+  font-size: clamp(3rem, 8vw, 6rem);
+  line-height: 0.95;
+  margin: 0;
+}
+
+.team-hero__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.team-hero__logo {
+  width: clamp(5rem, 10vw, 9rem);
+  height: clamp(5rem, 10vw, 9rem);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.team-content {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.4fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.team-col--roster {
+  position: sticky;
+  top: 5rem;
+}
+
+.team-col--right {
+  display: grid;
+  gap: 2rem;
+}
+
+.squad-section {
+  margin-bottom: 1.5rem;
+}
+
+.squad-section__label {
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.player-number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 1.5rem;
+  color: var(--muted);
+  text-align: right;
+  font-size: 0.8rem;
+}
+
+.player-name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .team-content {
+    grid-template-columns: 1fr;
+  }
+  .team-col--roster {
+    position: static;
+  }
 }

@@ -5,6 +5,7 @@ import Fixtures from './pages/Fixtures'
 import GroupStage from './pages/GroupStage'
 import TournamentBracket from './pages/TournamentBracket'
 import CustomMatch from './pages/CustomMatch'
+import TeamPage from './pages/TeamPage'
 
 const navLinks = [
   { label: 'Overview',           to: '/',        end: true },
@@ -38,7 +39,8 @@ function App() {
         <Route path="/fixtures" element={<Fixtures />} />
         <Route path="/groups"   element={<GroupStage />} />
         <Route path="/bracket"  element={<TournamentBracket />} />
-        <Route path="/custom"   element={<CustomMatch />} />
+        <Route path="/custom"        element={<CustomMatch />} />
+        <Route path="/team/:espnId"  element={<TeamPage />} />
       </Routes>
     </main>
   )

@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
 import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
-import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
+
+function getEspnId(code, fixtures) {
+  for (const f of fixtures) {
+    if (f.home_code === code) return f.home_espn_id
+    if (f.away_code === code) return f.away_espn_id
+  }
+  return null
+}
 
 // Filters all ESPN fixtures down to just the 6 belonging to a specific group
 function getGroupFixtures(group, allFixtures) {
@@ -15,7 +23,8 @@ function getGroupFixtures(group, allFixtures) {
 }
 
 // Standings table shared between both tabs
-function StandingsTable({ standings }) {
+function StandingsTable({ standings, allFixtures }) {
+  const navigate = useNavigate()
   return (
     <table className="standings-table">
       <thead>
@@ -29,7 +38,14 @@ function StandingsTable({ standings }) {
       <tbody>
         {standings.map((team, index) => (
           <tr key={team.code}>
-            <td>{team.name}</td>
+            <td>
+              <span
+                className="team-name-link"
+                onClick={() => navigate(`/team/${getEspnId(team.code, allFixtures)}`)}
+              >
+                {team.name}
+              </span>
+            </td>
             <td>{team.points}</td>
             <td>{team.probSum}%</td>
             <td>
@@ -47,6 +63,7 @@ function StandingsTable({ standings }) {
 }
 
 export default function GroupStage() {
+  const navigate = useNavigate()
   const [expandedGroup, setExpandedGroup] = useState('')  // Which group card is expanded
   const [activeTab, setActiveTab] = useState({})  // 'results' or 'simulate' per group
   const [allFixtures, setAllFixtures] = useState([])  // All 72 ESPN fixtures fetched on mount
@@ -194,7 +211,15 @@ export default function GroupStage() {
               {/* Team list always visible */}
               <div className="team-list">
                 {group.teams.map((team) => (
-                  <TeamBadge key={team.code} team={team} />
+                  <span key={team.code} className="team-badge">
+                    <span>{team.code}</span>
+                    <span
+                      className="team-name-link"
+                      onClick={() => navigate(`/team/${getEspnId(team.code, allFixtures)}`)}
+                    >
+                      {team.name}
+                    </span>
+                  </span>
                 ))}
               </div>
 
@@ -240,7 +265,13 @@ export default function GroupStage() {
                                   {fixture.detail} · {fixture.venue}
                                 </span>
                                 <strong>
-                                  {fixture.home_team} vs {fixture.away_team}
+                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.home_espn_id}`)}>
+                                    {fixture.home_team}
+                                  </span>
+                                  {' vs '}
+                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.away_espn_id}`)}>
+                                    {fixture.away_team}
+                                  </span>
                                 </strong>
                                 {/* Show real score for completed and in progress matches */}
                                 {(completed || inProgress) && (
@@ -293,13 +324,14 @@ export default function GroupStage() {
 
                       {/* Live standings — show if any fixture is completed or remaining have been simmed */}
                       {liveStandings[group.id] && (
-                        <StandingsTable standings={liveStandings[group.id]} />
+                        <StandingsTable standings={liveStandings[group.id]} allFixtures={allFixtures} />
                       )}
 
                       {/* If all fixtures are completed, show real standings automatically */}
                       {groupFixtures.every((f) => isMatchCompleted(f.status)) && !liveStandings[group.id] && (
                         <StandingsTable
                           standings={computeLiveStandings(group, groupFixtures, {})}
+                          allFixtures={allFixtures}
                         />
                       )}
                     </>
@@ -323,7 +355,13 @@ export default function GroupStage() {
                                   {fixture.detail} · {fixture.venue}
                                 </span>
                                 <strong>
-                                  {fixture.home_team} vs {fixture.away_team}
+                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.home_espn_id}`)}>
+                                    {fixture.home_team}
+                                  </span>
+                                  {' vs '}
+                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.away_espn_id}`)}>
+                                    {fixture.away_team}
+                                  </span>
                                 </strong>
                               </div>
                               <button
@@ -364,7 +402,7 @@ export default function GroupStage() {
                       </button>
 
                       {simStandings[group.id] && (
-                        <StandingsTable standings={simStandings[group.id]} />
+                        <StandingsTable standings={simStandings[group.id]} allFixtures={allFixtures} />
                       )}
                     </>
                   )}

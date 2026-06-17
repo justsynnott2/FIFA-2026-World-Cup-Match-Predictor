@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from predict import predict_match
-from fixtures import get_all_fixtures, get_live_fixture, get_upcoming_fixtures, get_recent_results
+from fixtures import get_all_fixtures, get_live_fixture, get_upcoming_fixtures, get_recent_results, get_team_squad, get_team_news
 
 app = FastAPI()
 
@@ -53,3 +53,13 @@ def upcoming_fixtures():
 def recent_results():
     """Returns the last 10 completed group stage fixtures with scores from ESPN."""
     return get_recent_results()
+
+@app.get("/team/{espn_id}/squad")
+def team_squad(espn_id: str):
+    """Returns squad/roster grouped by position for a given ESPN team ID."""
+    return get_team_squad(espn_id)
+
+@app.get("/team/{espn_id}/news")
+def team_news(espn_id: str):
+    """Returns latest news articles for a given ESPN team ID."""
+    return get_team_news(espn_id)

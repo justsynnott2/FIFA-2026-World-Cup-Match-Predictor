@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getLiveFixtures, getUpcomingFixtures, getRecentResults } from '../utils/api'
 import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
 
@@ -31,6 +32,7 @@ function FormDots({ form }) {
 
 // Single fixture card used for both upcoming and results
 function FixtureCard({ fixture }) {
+    const navigate = useNavigate()
     const isCompleted = isMatchCompleted(fixture.status)
     const isLive = isMatchLive(fixture.status)
 
@@ -49,7 +51,12 @@ function FixtureCard({ fixture }) {
                 {/* Home team */}
                 <div className="fixture-card__team">
                     <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
-                    <span className="fixture-card__name">{fixture.home_team}</span>
+                    <span
+                        className="fixture-card__name team-name-link"
+                        onClick={() => fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`)}
+                    >
+                        {fixture.home_team}
+                    </span>
                     <FormDots form={fixture.home_form} />
                 </div>
 
@@ -71,7 +78,12 @@ function FixtureCard({ fixture }) {
                 {/* Away team */}
                 <div className="fixture-card__team fixture-card__team--away">
                     <FormDots form={fixture.away_form} />
-                    <span className="fixture-card__name">{fixture.away_team}</span>
+                    <span
+                        className="fixture-card__name team-name-link"
+                        onClick={() => fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`)}
+                    >
+                        {fixture.away_team}
+                    </span>
                     <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
                 </div>
 
@@ -82,6 +94,7 @@ function FixtureCard({ fixture }) {
 
 // Featured match card at the top — shows live match if one is in progress, otherwise next upcoming
 function Countdown({ fixture, isKnownLive = false }) {
+    const navigate = useNavigate()
     const [timeLeft, setTimeLeft] = useState('')
     const isLive = isKnownLive || isMatchLive(fixture?.status)
 
@@ -126,14 +139,24 @@ function Countdown({ fixture, isKnownLive = false }) {
                     <div className="countdown-card__matchup">
                         <div className="countdown-card__team">
                             <img src={fixture.home_logo} alt={fixture.home_team} className="countdown-card__logo" />
-                            <span>{fixture.home_team}</span>
+                            <span
+                                className="team-name-link"
+                                onClick={() => fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`)}
+                            >
+                                {fixture.home_team}
+                            </span>
                         </div>
                         <div className="countdown-card__score">
                             {fixture.home_score} – {fixture.away_score}
                         </div>
                         <div className="countdown-card__team countdown-card__team--away">
                             <img src={fixture.away_logo} alt={fixture.away_team} className="countdown-card__logo" />
-                            <span>{fixture.away_team}</span>
+                            <span
+                                className="team-name-link"
+                                onClick={() => fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`)}
+                            >
+                                {fixture.away_team}
+                            </span>
                         </div>
                     </div>
                 </>
@@ -142,7 +165,13 @@ function Countdown({ fixture, isKnownLive = false }) {
                     <span className="eyebrow">Next Fixture</span>
                     <div className="countdown-card__match">
                         <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
-                        <span>{fixture.home_team} vs {fixture.away_team}</span>
+                        <span className="team-name-link" onClick={() => fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`)}>
+                            {fixture.home_team}
+                        </span>
+                        {' vs '}
+                        <span className="team-name-link" onClick={() => fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`)}>
+                            {fixture.away_team}
+                        </span>
                         <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
                     </div>
                     <div className="countdown-card__timer">{timeLeft}</div>
