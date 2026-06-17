@@ -81,9 +81,9 @@ function FixtureCard({ fixture }) {
 }
 
 // Featured match card at the top — shows live match if one is in progress, otherwise next upcoming
-function Countdown({ fixture }) {
+function Countdown({ fixture, isKnownLive = false }) {
     const [timeLeft, setTimeLeft] = useState('')
-    const isLive = isMatchLive(fixture?.status)
+    const isLive = isKnownLive || isMatchLive(fixture?.status)
 
     useEffect(() => {
         // No countdown needed for live matches
@@ -153,6 +153,16 @@ function Countdown({ fixture }) {
     )
 }
 
+function computeDelay(live, upcoming) {
+    if (live) return 30_000
+    const next = upcoming[0]
+    if (!next) return 300_000
+    const msUntilKickoff = new Date(next.date).getTime() - Date.now()
+    if (msUntilKickoff <= 0) return 30_000                    // past kickoff, waiting for ESPN to go live
+    if (msUntilKickoff <= 30 * 60 * 1000) return 60_000      // within 30 min of kickoff
+    return 300_000
+}
+
 export default function Fixtures() {
     const [liveFixture, setLiveFixture] = useState(null)
     const [upcomingFixtures, setUpcomingFixtures] = useState([])
@@ -161,7 +171,9 @@ export default function Fixtures() {
     const [error, setError] = useState(null)
 
     useEffect(() => {
-        async function fetchFixtures() {
+        let timerId
+
+        async function tick() {
             try {
                 const [live, upcoming, results] = await Promise.all([
                     getLiveFixtures(),
@@ -170,26 +182,18 @@ export default function Fixtures() {
                 ])
                 setLiveFixture(live)
                 setUpcomingFixtures(upcoming)
-                setRecentResults(results.reverse())
+                setRecentResults([...results].reverse())
+                setIsLoading(false)
+                timerId = setTimeout(tick, computeDelay(live, upcoming))
             } catch {
                 setError('Failed to load fixtures. Make sure the backend is running.')
-            } finally {
                 setIsLoading(false)
             }
         }
 
-        fetchFixtures()
+        tick()
+        return () => clearTimeout(timerId)
     }, [])
-
-    // Poll the live fixture every 60 seconds while a match is in progress
-    useEffect(() => {
-        if (!liveFixture) return
-        const interval = setInterval(async () => {
-            const live = await getLiveFixtures()
-            setLiveFixture(live)
-        }, 30000)
-        return () => clearInterval(interval)
-    }, [liveFixture !== null])
 
     if (isLoading) return <section className="page"><p className="empty-state">Loading fixtures...</p></section>
     if (error) return <section className="page"><p className="empty-state">{error}</p></section>
@@ -203,7 +207,7 @@ export default function Fixtures() {
             </div>
 
             {/* Featured match — live if in progress, otherwise next upcoming */}
-            <Countdown fixture={liveFixture ?? upcomingFixtures[0]} />
+            <Countdown fixture={liveFixture ?? upcomingFixtures[0]} isKnownLive={liveFixture !== null} />
 
             <div className="fixtures-grid">
 
