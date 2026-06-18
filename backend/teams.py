@@ -47,19 +47,20 @@ def get_team_news(espn_id: str):
     """Returns latest news articles for a given ESPN team ID."""
     def fetch():
         try:
-            url = f"https://site.api.espn.com/apis/v1/sports/soccer/fifa.world/news"
-            response = requests.get(url, params={'team': espn_id, 'limit': 10})
+            url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news"
+            response = requests.get(url, params={'team': espn_id, 'limit': 20})
             data = response.json()
             articles = data.get('articles', [])
+
             return [
                 {
-                    'headline': article.get('headline', ''),
-                    'description': article.get('description', ''),
-                    'published': article.get('published', ''),
-                    'link': article.get('links', {}).get('web', {}).get('href', ''),
-                    'image': article.get('images', [{}])[0].get('url', '') if article.get('images') else '',
+                    'headline': a.get('headline', ''),
+                    'description': a.get('description', ''),
+                    'published': a.get('published', ''),
+                    'link': a.get('links', {}).get('web', {}).get('href', ''),
+                    'image': a.get('images', [{}])[0].get('url', '') if a.get('images') else '',
                 }
-                for article in articles
+                for a in articles
             ]
         except Exception:
             return []

@@ -79,6 +79,7 @@ export default function TeamPage() {
   const [allFixtures, setAllFixtures] = useState(null)
   const [squad, setSquad] = useState(null)
   const [news, setNews] = useState(null)
+  const [newsPage, setNewsPage] = useState(0)
 
   useEffect(() => {
     async function fetchAll() {
@@ -92,6 +93,10 @@ export default function TeamPage() {
       setNews(newsData)
     }
     fetchAll()
+  }, [espnId])
+
+  useEffect(() => {
+    setNewsPage(0)
   }, [espnId])
 
   if (!allFixtures) {
@@ -188,38 +193,59 @@ export default function TeamPage() {
 
           {/* News */}
           <div>
-            <h2>News</h2>
+            <h2>Recent News</h2>
             {!news ? (
               <p className="empty-state">Loading news…</p>
             ) : news.length === 0 ? (
               <p className="empty-state">No news available.</p>
             ) : (
-              <div className="news-list" style={{ marginTop: '1rem' }}>
-                {news.map((article, i) => (
-                  <div key={i} className="news-card">
-                    {article.image && (
-                      <img src={article.image} alt={article.headline} className="news-card__image" />
-                    )}
-                    <div className="news-card__body">
-                      <strong className="news-card__headline">{article.headline}</strong>
-                      {article.description && <p className="news-card__desc">{article.description}</p>}
-                      <span className="news-card__date">
-                        {new Date(article.published).toLocaleDateString()}
-                      </span>
-                      {article.link && (
-                        <a
-                          href={article.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="news-card__link"
-                        >
-                          Read more →
-                        </a>
+              <>
+                <div className="news-list" style={{ marginTop: '1rem' }}>
+                  {news.slice(newsPage * 5, (newsPage + 1) * 5).map((article, i) => (
+                    <div key={i} className="news-card">
+                      {article.image && (
+                        <img src={article.image} alt={article.headline} className="news-card__image" />
                       )}
+                      <div className="news-card__body">
+                        <strong className="news-card__headline">{article.headline}</strong>
+                        {article.description && <p className="news-card__desc">{article.description}</p>}
+                        <span className="news-card__date">
+                          {new Date(article.published).toLocaleDateString()}
+                        </span>
+                        {article.link && (
+                          <a
+                            href={article.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="news-card__link"
+                          >
+                            Read more →
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setNewsPage(p => p - 1)}
+                    disabled={newsPage === 0}
+                  >
+                    ← Prev
+                  </button>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                    Page {newsPage + 1} of {Math.ceil(news.length / 5)}
+                  </span>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setNewsPage(p => p + 1)}
+                    disabled={(newsPage + 1) * 5 >= news.length}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </>
             )}
           </div>
 
