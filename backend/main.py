@@ -7,7 +7,8 @@ import numpy as np
 import os
 
 from predict import predict_match
-from fixtures import get_all_fixtures, get_live_fixture, get_upcoming_fixtures, get_recent_results, get_team_squad, get_team_news
+from fixtures import get_all_fixtures, get_live_fixture, get_upcoming_fixtures, get_recent_results
+from teams import get_team_squad, get_team_news
 
 app = FastAPI()
 
