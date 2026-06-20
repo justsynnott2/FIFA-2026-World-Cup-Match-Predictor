@@ -91,6 +91,24 @@ export default function GroupStage() {
     fetchFixtures()
   }, [])
 
+  // Polls for live score updates every 30 s, but only while at least one
+  // fixture is in progress. Stops automatically once all live matches end.
+  useEffect(() => {
+    const hasLiveMatch = allFixtures.some(f => isMatchLive(f.status))
+    if (!hasLiveMatch) return
+
+    const interval = setInterval(async () => {
+      try {
+        const fixtures = await getAllFixtures()
+        setAllFixtures(fixtures)
+      } catch {
+        // ignore transient polling errors; next tick will retry
+      }
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [allFixtures])
+
   // Get the active tab for a group, defaulting to 'results'
   function getActiveTab(groupId) {
     return activeTab[groupId] ?? 'results'
