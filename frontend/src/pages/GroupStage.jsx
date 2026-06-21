@@ -68,7 +68,6 @@ export default function GroupStage() {
   const [activeTab, setActiveTab] = useState({})  // 'results' or 'simulate' per group
   const [allFixtures, setAllFixtures] = useState([])  // All 72 ESPN fixtures fetched on mount
   const [predictions, setPredictions] = useState({}) // fixture_id → { home, draw, away } for any simulated fixtures
-  const [liveStandings, setLiveStandings] = useState({})  // group.id → standings array for live tab
   const [simStandings, setSimStandings] = useState({}) // group.id → standings array for simulate tab
   const [standingsLoading, setStandingsLoading] = useState({})  // group.id → boolean for standings loading state
 
@@ -135,30 +134,6 @@ export default function GroupStage() {
       delete next[fixtureId]
       return next
     })
-  }
-
-  // Simulate remaining non-completed fixtures for a group and compute live standings
-  async function handleSimulateRemaining(group, groupFixtures) {
-    setStandingsLoading((current) => ({ ...current, [group.id]: true }))
-    try {
-      const nonCompleted = groupFixtures.filter((fixture) => !isMatchCompleted(fixture.status))
-      const results = await Promise.all(
-        nonCompleted.map((fixture) => predictMatch(fixture.home_team, fixture.away_team))
-      )
-      const newPredictions = Object.fromEntries(
-        nonCompleted.map((fixture, i) => [fixture.fixture_id, results[i]])
-      )
-      const mergedPredictions = { ...predictions, ...newPredictions }
-      setPredictions(mergedPredictions)
-      setLiveStandings((current) => ({
-        ...current,
-        [group.id]: computeLiveStandings(group, groupFixtures, mergedPredictions),
-      }))
-    } catch {
-      // silently fail — standings just won't update
-    } finally {
-      setStandingsLoading((current) => ({ ...current, [group.id]: false }))
-    }
   }
 
   // Simulate all 6 fixtures for a group and compute sim standings
@@ -334,24 +309,17 @@ export default function GroupStage() {
                           className="wide-button"
                           type="button"
                           disabled={isStandingsLoading}
-                          onClick={() => handleSimulateRemaining(group, groupFixtures)}
+                          onClick={() => handleSimulateGroup(group, groupFixtures)}
                         >
-                          {isStandingsLoading ? 'Simulating…' : 'Simulate remaining & project standings'}
+                          {isStandingsLoading ? 'Simulating…' : 'Simulate remaining fixtures'}
                         </button>
                       )}
 
-                      {/* Live standings — show if any fixture is completed or remaining have been simmed */}
-                      {liveStandings[group.id] && (
-                        <StandingsTable standings={liveStandings[group.id]} allFixtures={allFixtures} />
-                      )}
-
-                      {/* If all fixtures are completed, show real standings automatically */}
-                      {groupFixtures.every((f) => isMatchCompleted(f.status)) && !liveStandings[group.id] && (
-                        <StandingsTable
-                          standings={computeLiveStandings(group, groupFixtures, {})}
-                          allFixtures={allFixtures}
-                        />
-                      )}
+                      {/* Always show current standings — real scores for completed fixtures, predictions for simulated ones */}
+                      <StandingsTable
+                        standings={computeLiveStandings(group, groupFixtures, predictions)}
+                        allFixtures={allFixtures}
+                      />
                     </>
                   )}
 
