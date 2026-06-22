@@ -1,10 +1,13 @@
 // ESPN live match status strings — one for each phase of a match in progress
+export const STATUS_DELAYED = 'STATUS_DELAYED'
+
 const LIVE_STATUSES = [
     'STATUS_FIRST_HALF',
     'STATUS_HALFTIME',
     'STATUS_SECOND_HALF',
     'STATUS_EXTRA_TIME',
     'STATUS_PENALTY',
+    STATUS_DELAYED,
 ]
 
 // Returns true if a fixture is currently in progress (any live phase)

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getAllFixtures, getTeamSquad, getTeamNews } from '../utils/api'
 import { allTeams } from '../data/tournament'
-import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
 const SQUAD_SECTIONS = [
   { key: 'GK',  label: 'Goalkeepers' },
@@ -53,7 +53,9 @@ function TeamFixtureCard({ fixture, currentEspnId }) {
               ? (
                 <div className="fixture-card__live">
                   <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                  <span className="live-badge">LIVE</span>
+                  <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                    {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                  </span>
                 </div>
               )
               : <span className="fixture-card__vs">vs</span>

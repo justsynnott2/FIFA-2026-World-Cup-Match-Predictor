@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
-import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import ProbabilityBars from '../components/ProbabilityBars'
 
 function getEspnId(code, fixtures) {
@@ -274,7 +274,11 @@ export default function GroupStage() {
                                 {(completed || inProgress) && (
                                   <span className="real-score">
                                     {fixture.home_score} – {fixture.away_score}
-                                    {inProgress && <span className="live-badge">LIVE</span>}
+                                    {inProgress && (
+                                      <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                                        {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                                      </span>
+                                    )}
                                   </span>
                                 )}
                               </div>

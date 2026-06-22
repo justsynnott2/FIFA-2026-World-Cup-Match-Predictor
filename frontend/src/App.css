@@ -817,6 +817,16 @@ select {
   letter-spacing: 0.05em;
 }
 
+.delay-badge {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #fff;
+  background: #d97706;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+}
+
 .countdown-card__live-header {
   display: flex;
   align-items: center;

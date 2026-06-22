@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLiveFixtures, getUpcomingFixtures, getRecentResults } from '../utils/api'
-import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
 // Converts a UTC ISO date string to a readable local time e.g. "Sat, Jun 13 · 6:00 PM"
 function formatMatchDate(isoString) {
@@ -68,7 +68,9 @@ function FixtureCard({ fixture }) {
                             ? (
                                 <div className="fixture-card__live">
                                     <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                                    <span className="live-badge">LIVE</span>
+                                    <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                                        {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                                    </span>
                                 </div>
                             )
                             : <span className="fixture-card__vs">vs</span>
@@ -133,7 +135,9 @@ function Countdown({ fixture, isKnownLive = false }) {
             {isLive ? (
                 <>
                     <div className="countdown-card__live-header">
-                        <span className="live-badge">LIVE</span>
+                        <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                            {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                        </span>
                         <span className="countdown-card__clock">{fixture.status === 'STATUS_HALFTIME' ? 'HT' : (fixture.clock || fixture.detail)}</span>
                     </div>
                     <div className="countdown-card__matchup">
