@@ -187,7 +187,7 @@ function Countdown({ fixture, isKnownLive = false }) {
 }
 
 function computeDelay(live, upcoming) {
-    if (live) return 30_000
+    if (live.length > 0) return 30_000
     const next = upcoming[0]
     if (!next) return 300_000
     const msUntilKickoff = new Date(next.date).getTime() - Date.now()
@@ -197,7 +197,7 @@ function computeDelay(live, upcoming) {
 }
 
 export default function Fixtures() {
-    const [liveFixture, setLiveFixture] = useState(null)
+    const [liveFixtures, setLiveFixtures] = useState([])
     const [upcomingFixtures, setUpcomingFixtures] = useState([])
     const [recentResults, setRecentResults] = useState([])
     const [isLoading, setIsLoading] = useState(true)
@@ -213,7 +213,7 @@ export default function Fixtures() {
                     getUpcomingFixtures(),
                     getRecentResults(),
                 ])
-                setLiveFixture(live)
+                setLiveFixtures(live)
                 setUpcomingFixtures(upcoming)
                 setRecentResults([...results].reverse())
                 setIsLoading(false)
@@ -239,8 +239,13 @@ export default function Fixtures() {
                 <h1>Fixtures & Results</h1>
             </div>
 
-            {/* Featured match — live if in progress, otherwise next upcoming */}
-            <Countdown fixture={liveFixture ?? upcomingFixtures[0]} isKnownLive={liveFixture !== null} />
+            {/* Live matches, or next upcoming if none are in progress */}
+            {liveFixtures.length > 0
+                ? liveFixtures.map((fixture) => (
+                    <Countdown key={fixture.fixture_id} fixture={fixture} isKnownLive={true} />
+                ))
+                : <Countdown fixture={upcomingFixtures[0]} isKnownLive={false} />
+            }
 
             <div className="fixtures-grid">
 
