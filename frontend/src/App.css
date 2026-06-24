@@ -732,8 +732,10 @@ select {
 
 .fixture-card__name {
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: clamp(0.7rem, 1.8vw, 0.9rem);
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .fixture-card__score {
@@ -1063,4 +1065,119 @@ select {
 
 .news-card__link:hover {
   text-decoration: underline;
+}
+
+/* Prediction bar */
+.pred-bar {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.pred-bar__names {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.pred-bar__names > span:first-child {
+  flex: 1;
+}
+
+.pred-bar__names > span:last-child {
+  flex: 1;
+  text-align: right;
+}
+
+.pred-bar__sep {
+  flex: 0 0 auto;
+  text-align: center;
+  color: var(--muted);
+}
+
+.pred-bar__track {
+  display: flex;
+  height: 1.75rem;
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.pred-bar__seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.pred-bar__seg--home { background: var(--green); }
+.pred-bar__seg--draw { background: var(--gold); }
+.pred-bar__seg--away { background: var(--red); }
+
+.pred-bar__label {
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.predict-loading {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+/* Card flip mechanic */
+.fixture-card-wrapper {
+  perspective: 1000px;
+  position: relative;
+  display: grid;
+}
+
+.fixture-card-flipper {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+  display: grid;
+}
+
+.fixture-card-wrapper.fixture-card-flipped .fixture-card-flipper {
+  transform: rotateY(180deg);
+}
+
+.fixture-card__front,
+.fixture-card__back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  width: 100%;
+}
+
+.fixture-card__front {
+  cursor: pointer;
+}
+
+.fixture-card__back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.predict-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.75rem;
+}
+
+.fixture-card__back .pred-bar {
+  width: 100%;
 }

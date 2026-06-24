@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getAllFixtures, getTeamSquad, getTeamNews } from '../utils/api'
+import { getAllFixtures, getTeamSquad, getTeamNews, predictMatch } from '../utils/api'
+import PredictionBar from '../components/PredictionBar'
 import { allTeams } from '../data/tournament'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
@@ -27,51 +28,103 @@ function TeamFixtureCard({ fixture, currentEspnId }) {
   const navigate = useNavigate()
   const completed = isMatchCompleted(fixture.status)
   const live = isMatchLive(fixture.status)
+  const isUpcoming = !completed && !live
   const homeIsSelf = fixture.home_espn_id === currentEspnId
   const awayIsSelf = fixture.away_espn_id === currentEspnId
+  const [isFlipped, setIsFlipped] = useState(false)
+  const [prediction, setPrediction] = useState(undefined)
+
+  function handleFlip() {
+    if (!isFlipped && prediction === undefined) {
+      setPrediction('loading')
+      predictMatch(fixture.home_team, fixture.away_team)
+        .then(result => setPrediction(result))
+        .catch(() => setPrediction('error'))
+    }
+    setIsFlipped(true)
+  }
+
+  const metaMarkup = (
+    <div className="fixture-card__meta">
+      <span>{formatMatchDate(fixture.date)}</span>
+      <span>{fixture.venue}, {fixture.city}</span>
+    </div>
+  )
+
+  const teamsMarkup = (
+    <div className="fixture-card__teams">
+      <div className="fixture-card__team">
+        <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
+        <span
+          className={`fixture-card__name${homeIsSelf ? '' : ' team-name-link'}`}
+          onClick={homeIsSelf ? undefined : (e) => { e.stopPropagation(); navigate(`/team/${fixture.home_espn_id}`) }}
+        >
+          {fixture.home_team}
+        </span>
+      </div>
+      <div className="fixture-card__score">
+        {completed
+          ? <strong>{fixture.home_score} – {fixture.away_score}</strong>
+          : live
+            ? (
+              <div className="fixture-card__live">
+                <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                  {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                </span>
+              </div>
+            )
+            : <span className="fixture-card__vs">vs</span>
+        }
+      </div>
+      <div className="fixture-card__team fixture-card__team--away">
+        <span
+          className={`fixture-card__name${awayIsSelf ? '' : ' team-name-link'}`}
+          onClick={awayIsSelf ? undefined : (e) => { e.stopPropagation(); navigate(`/team/${fixture.away_espn_id}`) }}
+        >
+          {fixture.away_team}
+        </span>
+        <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
+      </div>
+    </div>
+  )
+
+  if (!isUpcoming) {
+    return (
+      <article className="fixture-card">
+        {metaMarkup}
+        {teamsMarkup}
+      </article>
+    )
+  }
 
   return (
-    <article className="fixture-card">
-      <div className="fixture-card__meta">
-        <span>{formatMatchDate(fixture.date)}</span>
-        <span>{fixture.venue}, {fixture.city}</span>
+    <div className={`fixture-card-wrapper${isFlipped ? ' fixture-card-flipped' : ''}`}>
+      <div className="fixture-card-flipper">
+
+        {/* Front face */}
+        <article className="fixture-card fixture-card__front" onClick={handleFlip}>
+          {metaMarkup}
+          {teamsMarkup}
+        </article>
+
+        {/* Back face */}
+        <div className="fixture-card fixture-card__back" onClick={() => setIsFlipped(false)}>
+          {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
+          {prediction && prediction !== 'loading' && prediction !== 'error' && (
+            <PredictionBar
+              home={prediction.home}
+              draw={prediction.draw}
+              away={prediction.away}
+              homeName={fixture.home_team}
+              awayName={fixture.away_team}
+            />
+          )}
+          {prediction === 'error' && <p className="predict-loading">Prediction unavailable</p>}
+        </div>
+
       </div>
-      <div className="fixture-card__teams">
-        <div className="fixture-card__team">
-          <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
-          <span
-            className={`fixture-card__name${homeIsSelf ? '' : ' team-name-link'}`}
-            onClick={homeIsSelf ? undefined : () => navigate(`/team/${fixture.home_espn_id}`)}
-          >
-            {fixture.home_team}
-          </span>
-        </div>
-        <div className="fixture-card__score">
-          {completed
-            ? <strong>{fixture.home_score} – {fixture.away_score}</strong>
-            : live
-              ? (
-                <div className="fixture-card__live">
-                  <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                  <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
-                    {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
-                  </span>
-                </div>
-              )
-              : <span className="fixture-card__vs">vs</span>
-          }
-        </div>
-        <div className="fixture-card__team fixture-card__team--away">
-          <span
-            className={`fixture-card__name${awayIsSelf ? '' : ' team-name-link'}`}
-            onClick={awayIsSelf ? undefined : () => navigate(`/team/${fixture.away_espn_id}`)}
-          >
-            {fixture.away_team}
-          </span>
-          <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
-        </div>
-      </div>
-    </article>
+    </div>
   )
 }
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLiveFixtures, getAllFixtures } from '../utils/api'
+import { getLiveFixtures, getAllFixtures, predictMatch } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
+import PredictionBar from '../components/PredictionBar'
 
 // Converts a UTC ISO date string to a readable local time e.g. "Sat, Jun 13 · 6:00 PM"
 function formatMatchDate(isoString) {
@@ -35,62 +36,110 @@ function FixtureCard({ fixture }) {
     const navigate = useNavigate()
     const isCompleted = isMatchCompleted(fixture.status)
     const isLive = isMatchLive(fixture.status)
+    const isUpcoming = !isCompleted && !isLive
+    const [isFlipped, setIsFlipped] = useState(false)
+    const [prediction, setPrediction] = useState(undefined)
+
+    function handleFlip() {
+        if (!isFlipped && prediction === undefined) {
+            setPrediction('loading')
+            predictMatch(fixture.home_team, fixture.away_team)
+                .then(result => setPrediction(result))
+                .catch(() => setPrediction('error'))
+        }
+        setIsFlipped(true)
+    }
+
+    const teamsMarkup = (
+        <div className="fixture-card__teams">
+
+            {/* Home team */}
+            <div className="fixture-card__team">
+                <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
+                <span
+                    className="fixture-card__name team-name-link"
+                    onClick={(e) => { e.stopPropagation(); fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`) }}
+                >
+                    {fixture.home_team}
+                </span>
+                <FormDots form={fixture.home_form} />
+            </div>
+
+            {/* Score, VS, or live score */}
+            <div className="fixture-card__score">
+                {isCompleted
+                    ? <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                    : isLive
+                        ? (
+                            <div className="fixture-card__live">
+                                <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                                <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                                    {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                                </span>
+                            </div>
+                        )
+                        : <span className="fixture-card__vs">vs</span>
+                }
+            </div>
+
+            {/* Away team */}
+            <div className="fixture-card__team fixture-card__team--away">
+                <FormDots form={fixture.away_form} />
+                <span
+                    className="fixture-card__name team-name-link"
+                    onClick={(e) => { e.stopPropagation(); fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`) }}
+                >
+                    {fixture.away_team}
+                </span>
+                <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
+            </div>
+
+        </div>
+    )
+
+    const metaMarkup = (
+        <div className="fixture-card__meta">
+            <span>{formatMatchDate(fixture.date)}</span>
+            <span>{fixture.venue}, {fixture.city}</span>
+        </div>
+    )
+
+    if (!isUpcoming) {
+        return (
+            <article className="fixture-card">
+                {metaMarkup}
+                {teamsMarkup}
+            </article>
+        )
+    }
 
     return (
-        <article className="fixture-card">
+        <div className={`fixture-card-wrapper${isFlipped ? ' fixture-card-flipped' : ''}`}>
+            <div className="fixture-card-flipper">
 
-            {/* Date, time, and venue */}
-            <div className="fixture-card__meta">
-                <span>{formatMatchDate(fixture.date)}</span>
-                <span>{fixture.venue}, {fixture.city}</span>
-            </div>
+                {/* Front face */}
+                <article className="fixture-card fixture-card__front" onClick={handleFlip}>
+                    {metaMarkup}
+                    {teamsMarkup}
+                </article>
 
-            {/* Teams and score/form row */}
-            <div className="fixture-card__teams">
-
-                {/* Home team */}
-                <div className="fixture-card__team">
-                    <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
-                    <span
-                        className="fixture-card__name team-name-link"
-                        onClick={() => fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`)}
-                    >
-                        {fixture.home_team}
-                    </span>
-                    <FormDots form={fixture.home_form} />
-                </div>
-
-                {/* Score, VS, or live score */}
-                <div className="fixture-card__score">
-                    {isCompleted
-                        ? <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                        : isLive
-                            ? (
-                                <div className="fixture-card__live">
-                                    <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                                    <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
-                                        {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
-                                    </span>
-                                </div>
-                            )
-                            : <span className="fixture-card__vs">vs</span>
-                    }
-                </div>
-
-                {/* Away team */}
-                <div className="fixture-card__team fixture-card__team--away">
-                    <FormDots form={fixture.away_form} />
-                    <span
-                        className="fixture-card__name team-name-link"
-                        onClick={() => fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`)}
-                    >
-                        {fixture.away_team}
-                    </span>
-                    <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
+                {/* Back face */}
+                <div className="fixture-card fixture-card__back" onClick={() => setIsFlipped(false)}>
+                    {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
+                    {prediction && prediction !== 'loading' && prediction !== 'error' && (
+                        <PredictionBar
+                            home={prediction.home}
+                            draw={prediction.draw}
+                            away={prediction.away}
+                            homeName={fixture.home_team}
+                            awayName={fixture.away_team}
+                        />
+                    )}
+                    {prediction === 'error' && <p className="predict-loading">Prediction unavailable</p>}
                 </div>
 
             </div>
-        </article>
+        </div>
     )
 }
 
@@ -98,6 +147,7 @@ function FixtureCard({ fixture }) {
 function Countdown({ fixture, isKnownLive = false }) {
     const navigate = useNavigate()
     const [timeLeft, setTimeLeft] = useState('')
+    const [prediction, setPrediction] = useState(undefined)
     const isLive = isKnownLive || isMatchLive(fixture?.status)
 
     useEffect(() => {
@@ -127,6 +177,17 @@ function Countdown({ fixture, isKnownLive = false }) {
         const interval = setInterval(updateCountdown, 1000)
         return () => clearInterval(interval)
     }, [fixture, isLive])
+
+    useEffect(() => {
+        if (!fixture || isLive || isMatchCompleted(fixture.status)) {
+            setPrediction(undefined)
+            return
+        }
+        setPrediction('loading')
+        predictMatch(fixture.home_team, fixture.away_team)
+            .then(result => setPrediction(result))
+            .catch(() => setPrediction('error'))
+    }, [fixture?.fixture_id, isLive])
 
     if (!fixture) return null
 
@@ -180,6 +241,18 @@ function Countdown({ fixture, isKnownLive = false }) {
                     </div>
                     <div className="countdown-card__timer">{timeLeft}</div>
                     <div className="countdown-card__detail">{fixture.detail}</div>
+                    {prediction === 'loading' && (
+                        <p className="predict-loading">Fetching prediction…</p>
+                    )}
+                    {prediction && prediction !== 'loading' && prediction !== 'error' && (
+                        <PredictionBar
+                            home={prediction.home}
+                            draw={prediction.draw}
+                            away={prediction.away}
+                            homeName={fixture.home_team}
+                            awayName={fixture.away_team}
+                        />
+                    )}
                 </>
             )}
         </div>
