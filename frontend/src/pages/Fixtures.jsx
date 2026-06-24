@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLiveFixtures, getUpcomingFixtures, getRecentResults } from '../utils/api'
+import { getLiveFixtures, getAllFixtures } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
 // Converts a UTC ISO date string to a readable local time e.g. "Sat, Jun 13 · 6:00 PM"
@@ -197,9 +197,11 @@ function computeDelay(live, upcoming) {
 }
 
 export default function Fixtures() {
+    const PAGE_SIZE = 5
     const [liveFixtures, setLiveFixtures] = useState([])
-    const [upcomingFixtures, setUpcomingFixtures] = useState([])
-    const [recentResults, setRecentResults] = useState([])
+    const [allFixtures, setAllFixtures] = useState([])
+    const [upcomingPage, setUpcomingPage] = useState(0)
+    const [resultsPage, setResultsPage] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState(null)
 
@@ -208,16 +210,17 @@ export default function Fixtures() {
 
         async function tick() {
             try {
-                const [live, upcoming, results] = await Promise.all([
+                const [live, all] = await Promise.all([
                     getLiveFixtures(),
-                    getUpcomingFixtures(),
-                    getRecentResults(),
+                    getAllFixtures(),
                 ])
+                const allUpcoming = all
+                    .filter(f => f.status === 'STATUS_SCHEDULED')
+                    .sort((a, b) => new Date(a.date) - new Date(b.date))
                 setLiveFixtures(live)
-                setUpcomingFixtures(upcoming)
-                setRecentResults([...results].reverse())
+                setAllFixtures(all)
                 setIsLoading(false)
-                timerId = setTimeout(tick, computeDelay(live, upcoming))
+                timerId = setTimeout(tick, computeDelay(live, allUpcoming))
             } catch {
                 setError('Failed to load fixtures. Make sure the backend is running.')
                 setIsLoading(false)
@@ -230,6 +233,17 @@ export default function Fixtures() {
 
     if (isLoading) return <section className="page"><p className="empty-state">Loading fixtures...</p></section>
     if (error) return <section className="page"><p className="empty-state">{error}</p></section>
+
+    const allUpcoming = allFixtures
+        .filter(f => f.status === 'STATUS_SCHEDULED')
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+
+    const allResults = allFixtures
+        .filter(f => isMatchCompleted(f.status))
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+
+    const upcomingSlice = allUpcoming.slice(upcomingPage * PAGE_SIZE, (upcomingPage + 1) * PAGE_SIZE)
+    const resultsSlice  = allResults.slice(resultsPage  * PAGE_SIZE, (resultsPage  + 1) * PAGE_SIZE)
 
     return (
         <section className="page fixtures-page">
@@ -244,7 +258,7 @@ export default function Fixtures() {
                 ? liveFixtures.map((fixture) => (
                     <Countdown key={fixture.fixture_id} fixture={fixture} isKnownLive={true} />
                 ))
-                : <Countdown fixture={upcomingFixtures[0]} isKnownLive={false} />
+                : <Countdown fixture={allUpcoming[0]} isKnownLive={false} />
             }
 
             <div className="fixtures-grid">
@@ -253,9 +267,28 @@ export default function Fixtures() {
                 <div className="fixtures-column">
                     <h2>Upcoming</h2>
                     <div className="fixture-list">
-                        {upcomingFixtures.map((fixture) => (
+                        {upcomingSlice.map((fixture) => (
                             <FixtureCard key={fixture.fixture_id} fixture={fixture} />
                         ))}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '1rem' }}>
+                        <button
+                            className="secondary-button"
+                            onClick={() => setUpcomingPage(p => p - 1)}
+                            disabled={upcomingPage === 0}
+                        >
+                            ← Prev
+                        </button>
+                        <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                            Page {upcomingPage + 1} of {Math.ceil(allUpcoming.length / PAGE_SIZE)}
+                        </span>
+                        <button
+                            className="secondary-button"
+                            onClick={() => setUpcomingPage(p => p + 1)}
+                            disabled={(upcomingPage + 1) * PAGE_SIZE >= allUpcoming.length}
+                        >
+                            Next →
+                        </button>
                     </div>
                 </div>
 
@@ -263,12 +296,31 @@ export default function Fixtures() {
                 <div className="fixtures-column">
                     <h2>Results</h2>
                     <div className="fixture-list">
-                        {recentResults.length === 0
+                        {resultsSlice.length === 0
                             ? <p className="empty-state">No results yet.</p>
-                            : recentResults.map((fixture) => (
+                            : resultsSlice.map((fixture) => (
                                 <FixtureCard key={fixture.fixture_id} fixture={fixture} />
                             ))
                         }
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '1rem' }}>
+                        <button
+                            className="secondary-button"
+                            onClick={() => setResultsPage(p => p - 1)}
+                            disabled={resultsPage === 0}
+                        >
+                            ← Newer
+                        </button>
+                        <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                            Page {resultsPage + 1} of {Math.ceil(allResults.length / PAGE_SIZE)}
+                        </span>
+                        <button
+                            className="secondary-button"
+                            onClick={() => setResultsPage(p => p + 1)}
+                            disabled={(resultsPage + 1) * PAGE_SIZE >= allResults.length}
+                        >
+                            Older →
+                        </button>
                     </div>
                 </div>
 
