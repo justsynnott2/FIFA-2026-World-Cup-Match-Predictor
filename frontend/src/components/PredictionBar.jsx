@@ -2,9 +2,12 @@ const THRESHOLD = 15
 
 export default function PredictionBar({ home, draw, away, homeName, awayName }) {
     return (
-        <div className="pred-bar">
-            <div className="pred-bar__names">
-                <span style={{ flex: 1 }}>{homeName}</span>
+        <div className="pred-bar" style={{ width: '100%' }}>
+            <div
+                className="pred-bar__names"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+                <span style={{ flex: 1, textAlign: 'left' }}>{homeName}</span>
                 <span className="pred-bar__sep">vs</span>
                 <span style={{ flex: 1, textAlign: 'right' }}>{awayName}</span>
             </div>
