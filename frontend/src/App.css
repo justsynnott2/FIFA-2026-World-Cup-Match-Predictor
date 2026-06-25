@@ -335,15 +335,47 @@ p {
   grid-column: 1 / -1;
 }
 
+.group-card--active {
+  border-left: 3px solid var(--green);
+  background: rgba(28, 166, 116, 0.05);
+}
+
+.group-detail-panel {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.group-detail-panel__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.group-detail-panel__label {
+  margin-bottom: 0.75rem;
+  color: var(--red);
+  font-weight: 900;
+}
+
 .group-expanded-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
   gap: 1rem;
   align-items: start;
 }
 
 .group-expanded-layout > * {
   min-width: 0;
+}
+
+.group-expanded-layout--simulate {
+  grid-template-columns: minmax(0, 0.6fr) minmax(0, 1.4fr);
 }
 
 .group-summary {
@@ -357,6 +389,7 @@ p {
   padding: 0;
   text-align: left;
   box-shadow: none;
+  cursor: pointer;
 }
 
 .group-summary:hover {
@@ -392,7 +425,7 @@ p {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.9rem;
   align-items: start;
-  padding: 0.9rem;
+  padding: 0.6rem;
   border-radius: 0.5rem;
   background: var(--soft);
 }
@@ -401,23 +434,18 @@ p {
   grid-column: 1 / -1;
 }
 
+.group-expanded-layout--simulate .fixture-row {
+  min-height: 4.5rem;
+  max-height: 4.5rem;
+  overflow: hidden;
+  align-items: center;
+}
+
 .fixture-meta {
   justify-content: flex-start;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   margin-bottom: 0.2rem;
-}
-
-.group-expanded-layout .fixture-row {
-  padding: 0.6rem;
-}
-
-.group-expanded-layout .fixture-row strong {
-  font-size: 0.9rem;
-}
-
-.group-expanded-layout .fixture-meta {
-  font-size: 0.75rem;
 }
 
 .wide-button {
@@ -450,6 +478,17 @@ p {
 .standings-table th:first-child,
 .standings-table td:first-child {
   padding-right: 0.5rem;
+}
+
+.group-detail-panel .standings-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.group-detail-panel .standings-table th,
+.group-detail-panel .standings-table td {
+  font-size: 0.72rem;
+  padding: 0.35rem 0.25rem;
 }
 
 .bracket-toolbar {
