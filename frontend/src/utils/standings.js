@@ -1,11 +1,10 @@
-// Awards points based on a model prediction
-// Mutates the points and probSum accumulators directly
-function awardPointsFromPrediction(points, probSum, fixture, prediction) {
-    // Accumulate win probabilities for tiebreaking
-    probSum[fixture.home_code] += prediction.home
-    probSum[fixture.away_code] += prediction.away
+// Awards points and blended prob based on a model prediction
+function awardPointsFromPrediction(points, probSum, gameCount, fixture, prediction) {
+    probSum[fixture.home_code] += prediction.home / 100
+    probSum[fixture.away_code] += prediction.away / 100
+    gameCount[fixture.home_code] += 1
+    gameCount[fixture.away_code] += 1
 
-    // Award points based on predicted outcome
     if (prediction.draw > prediction.home && prediction.draw > prediction.away) {
         points[fixture.home_code] += 1
         points[fixture.away_code] += 1
@@ -16,67 +15,95 @@ function awardPointsFromPrediction(points, probSum, fixture, prediction) {
     }
 }
 
-// Awards points based on a real score from ESPN
-// Mutates the points accumulator directly
-function awardPointsFromResult(points, fixture) {
+// Awards points and synthetic blended prob based on a real score from ESPN
+function awardPointsFromResult(points, probSum, gameCount, fixture) {
     const homeScore = parseInt(fixture.home_score)
     const awayScore = parseInt(fixture.away_score)
 
+    let homeProb
     if (homeScore > awayScore) {
         points[fixture.home_code] += 3
+        homeProb = 1.0
     } else if (homeScore < awayScore) {
         points[fixture.away_code] += 3
+        homeProb = 0.0
     } else {
         points[fixture.home_code] += 1
         points[fixture.away_code] += 1
+        homeProb = 0.5
     }
+
+    probSum[fixture.home_code] += homeProb
+    probSum[fixture.away_code] += 1.0 - homeProb
+    gameCount[fixture.home_code] += 1
+    gameCount[fixture.away_code] += 1
 }
 
 // Sorts and returns the final standings array
-function buildStandings(group, points, probSum) {
+// espnStandings is the array of ESPN entry objects for this group (optional)
+function buildStandings(group, points, probSum, gameCount, espnStandings) {
+    const espnByCode = espnStandings
+        ? Object.fromEntries(espnStandings.filter(e => e.code).map(e => [e.code, e]))
+        : {}
+
     return group.teams
-        .map((team) => ({
-            ...team,
-            points: points[team.code],
-            probSum: Math.round(probSum[team.code] / 3),
-        }))
-        .sort((a, b) => b.points - a.points || b.probSum - a.probSum)
+        .map((team) => {
+            const espn = espnByCode[team.code]
+            const avgProb = gameCount[team.code] > 0
+                ? probSum[team.code] / gameCount[team.code]
+                : 0
+            return {
+                ...team,
+                points: points[team.code],
+                probSum: avgProb,
+                gp: espn?.gp ?? null,
+                w:  espn?.w  ?? null,
+                d:  espn?.d  ?? null,
+                l:  espn?.l  ?? null,
+                gf: espn?.gf ?? null,
+                ga: espn?.ga ?? null,
+                gd: espn?.gd ?? null,
+            }
+        })
+        .sort((a, b) =>
+            b.points - a.points ||
+            (b.gd ?? 0) - (a.gd ?? 0) ||
+            b.probSum - a.probSum
+        )
 }
 
 // Tab 1 — Live standings
-// Completed fixtures use real scores
-// In progress and upcoming fixtures use model predictions if available, otherwise skipped
-export function computeLiveStandings(group, fixtures, predictions) {
-    const points = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
-    const probSum = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
+// Completed fixtures use real scores; in-progress and upcoming use model predictions
+export function computeLiveStandings(group, fixtures, predictions, espnStandings) {
+    const points   = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
+    const probSum  = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
+    const gameCount = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
 
     fixtures.forEach((fixture) => {
         if (fixture.status === 'STATUS_FULL_TIME') {
-            // Real result — use actual score
-            awardPointsFromResult(points, fixture)
+            awardPointsFromResult(points, probSum, gameCount, fixture)
         } else {
-            // In progress or upcoming — use model prediction if available
             const prediction = predictions[fixture.fixture_id]
             if (!prediction) return
-            awardPointsFromPrediction(points, probSum, fixture, prediction)
+            awardPointsFromPrediction(points, probSum, gameCount, fixture, prediction)
         }
     })
 
-    return buildStandings(group, points, probSum)
+    return buildStandings(group, points, probSum, gameCount, espnStandings)
 }
 
 // Tab 2 — Simulate standings
 // All fixtures use model predictions regardless of real results
-// Real scores are completely ignored
-export function computeSimStandings(group, fixtures, predictions) {
-    const points = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
-    const probSum = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
+export function computeSimStandings(group, fixtures, predictions, espnStandings) {
+    const points   = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
+    const probSum  = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
+    const gameCount = Object.fromEntries(group.teams.map((team) => [team.code, 0]))
 
     fixtures.forEach((fixture) => {
         const prediction = predictions[fixture.fixture_id]
         if (!prediction) return
-        awardPointsFromPrediction(points, probSum, fixture, prediction)
+        awardPointsFromPrediction(points, probSum, gameCount, fixture, prediction)
     })
 
-    return buildStandings(group, points, probSum)
+    return buildStandings(group, points, probSum, gameCount, espnStandings)
 }

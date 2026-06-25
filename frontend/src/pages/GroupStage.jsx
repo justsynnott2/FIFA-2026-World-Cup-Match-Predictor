@@ -6,6 +6,8 @@ import { computeLiveStandings, computeSimStandings } from '../utils/standings'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import ProbabilityBars from '../components/ProbabilityBars'
 
+const API_BASE = 'http://localhost:8000'
+
 function getEspnId(code, fixtures) {
   for (const f of fixtures) {
     if (f.home_code === code) return f.home_espn_id
@@ -30,13 +32,18 @@ function StandingsTable({ standings, allFixtures }) {
       <thead>
         <tr>
           <th>Team</th>
+          <th>GP</th>
+          <th>W</th>
+          <th>D</th>
+          <th>L</th>
+          <th>GF</th>
+          <th>GA</th>
+          <th>GD</th>
           <th>Pts</th>
-          <th>Win Prob</th>
-          <th>Status</th>
         </tr>
       </thead>
       <tbody>
-        {standings.map((team, index) => (
+        {standings.map((team) => (
           <tr key={team.code}>
             <td>
               <span
@@ -46,15 +53,14 @@ function StandingsTable({ standings, allFixtures }) {
                 {team.name}
               </span>
             </td>
+            <td>{team.gp ?? '—'}</td>
+            <td>{team.w  ?? '—'}</td>
+            <td>{team.d  ?? '—'}</td>
+            <td>{team.l  ?? '—'}</td>
+            <td>{team.gf ?? '—'}</td>
+            <td>{team.ga ?? '—'}</td>
+            <td>{team.gd ?? '—'}</td>
             <td>{team.points}</td>
-            <td>{team.probSum}%</td>
-            <td>
-              {index < 2
-                ? 'Advances'
-                : index === 2
-                  ? 'Third-place watch'
-                  : 'At risk'}
-            </td>
           </tr>
         ))}
       </tbody>
@@ -64,20 +70,20 @@ function StandingsTable({ standings, allFixtures }) {
 
 export default function GroupStage() {
   const navigate = useNavigate()
-  const [expandedGroup, setExpandedGroup] = useState('')  // Which group card is expanded
-  const [activeTab, setActiveTab] = useState({})  // 'results' or 'simulate' per group
-  const [allFixtures, setAllFixtures] = useState([])  // All 72 ESPN fixtures fetched on mount
-  const [predictions, setPredictions] = useState({}) // fixture_id → { home, draw, away } for any simulated fixtures
-  const [simStandings, setSimStandings] = useState({}) // group.id → standings array for simulate tab
-  const [standingsLoading, setStandingsLoading] = useState({})  // group.id → boolean for standings loading state
+  const [expandedGroup, setExpandedGroup] = useState('')
+  const [activeTab, setActiveTab] = useState({})
+  const [allFixtures, setAllFixtures] = useState([])
+  const [espnStandings, setEspnStandings] = useState({})
+  const [predictions, setPredictions] = useState({})
+  const [simStandings, setSimStandings] = useState({})
+  const [standingsLoading, setStandingsLoading] = useState({})
 
-  // Initial fetch loading state
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Fetch all fixtures on mount
+  // Fetch fixtures and ESPN standings on mount
   useEffect(() => {
-    async function fetchFixtures() {
+    async function fetchInitialData() {
       try {
         const fixtures = await getAllFixtures()
         setAllFixtures(fixtures)
@@ -86,14 +92,16 @@ export default function GroupStage() {
       } finally {
         setIsLoading(false)
       }
+
+      fetch(`${API_BASE}/schedule/standings`)
+        .then(r => r.json())
+        .then(setEspnStandings)
+        .catch(() => {})
     }
-    fetchFixtures()
+    fetchInitialData()
   }, [])
 
-  // Uses recursive setTimeout rather than setInterval so the poll schedule is
-  // self-contained and never torn down mid-cycle. A setInterval with an
-  // allFixtures dependency would restart the interval on every successful fetch,
-  // causing drift and unnecessary re-registrations.
+  // Recursive polling — 30s when live, 5min otherwise
   useEffect(() => {
     let timerId
 
@@ -112,7 +120,6 @@ export default function GroupStage() {
     return () => clearTimeout(timerId)
   }, [])
 
-  // Get the active tab for a group, defaulting to 'results'
   function getActiveTab(groupId) {
     return activeTab[groupId] ?? 'results'
   }
@@ -121,7 +128,6 @@ export default function GroupStage() {
     setActiveTab((current) => ({ ...current, [groupId]: tab }))
   }
 
-  // Simulate a single fixture and update predictions
   async function handleSimulateFixture(fixture) {
     setPredictions((current) => ({ ...current, [fixture.fixture_id]: 'loading' }))
     try {
@@ -140,11 +146,9 @@ export default function GroupStage() {
     })
   }
 
-  // Simulate all 6 fixtures for a group and compute sim standings
   async function handleSimulateGroup(group, groupFixtures) {
     const isSimulated = Boolean(simStandings[group.id])
 
-    // If already simulated, reset
     if (isSimulated) {
       setSimStandings((current) => {
         const next = { ...current }
@@ -166,7 +170,7 @@ export default function GroupStage() {
       setPredictions(mergedPredictions)
       setSimStandings((current) => ({
         ...current,
-        [group.id]: computeSimStandings(group, groupFixtures, mergedPredictions),
+        [group.id]: computeSimStandings(group, groupFixtures, mergedPredictions, espnStandings[`Group ${group.id}`]),
       }))
     } catch {
       // silently fail
@@ -177,6 +181,13 @@ export default function GroupStage() {
 
   if (isLoading) return <section className="page"><p className="empty-state">Loading fixtures...</p></section>
   if (error) return <section className="page"><p className="empty-state">{error}</p></section>
+
+  const espnIdToCode = Object.fromEntries(
+    allFixtures.flatMap(f => [
+      [f.home_espn_id, f.home_code],
+      [f.away_espn_id, f.away_code],
+    ])
+  )
 
   return (
     <section className="page">
@@ -191,11 +202,14 @@ export default function GroupStage() {
           const groupFixtures = getGroupFixtures(group, allFixtures)
           const currentTab = getActiveTab(group.id)
           const isStandingsLoading = standingsLoading[group.id]
+          const groupEspnStandings = (espnStandings[`Group ${group.id}`] ?? []).map(e => ({
+            ...e,
+            code: espnIdToCode[e.espn_id],
+          }))
 
           return (
             <article className={`group-card ${isExpanded ? 'expanded' : ''}`} key={group.id}>
 
-              {/* Group header — click to expand/collapse */}
               <button
                 className="group-summary"
                 type="button"
@@ -205,7 +219,6 @@ export default function GroupStage() {
                 <strong>{group.teams.map((team) => team.code).join(' / ')}</strong>
               </button>
 
-              {/* Team list always visible */}
               <div className="team-list">
                 {group.teams.map((team) => (
                   <span key={team.code} className="team-badge">
@@ -223,7 +236,6 @@ export default function GroupStage() {
               {isExpanded && (
                 <div className="group-detail">
 
-                  {/* Inner tab switcher */}
                   <div className="group-tabs">
                     <button
                       type="button"
@@ -241,50 +253,119 @@ export default function GroupStage() {
                     </button>
                   </div>
 
-                  {/* Results tab */}
                   {currentTab === 'results' && (
-                    <>
-                      <div className="fixture-list">
-                        {groupFixtures.map((fixture) => {
-                          const completed = isMatchCompleted(fixture.status)
-                          const inProgress = isMatchLive(fixture.status)
-                          const prediction = predictions[fixture.fixture_id]
-                          const isLoadingPrediction = prediction === 'loading'
-                          const isError = prediction === 'error'
-                          const hasResult = prediction && prediction !== 'loading' && prediction !== 'error'
-                          const isShown = Boolean(prediction)
+                    <div className="group-expanded-layout">
+                      <div>
+                        <div className="fixture-list">
+                          {groupFixtures.map((fixture) => {
+                            const completed = isMatchCompleted(fixture.status)
+                            const inProgress = isMatchLive(fixture.status)
+                            const prediction = predictions[fixture.fixture_id]
+                            const isLoadingPrediction = prediction === 'loading'
+                            const isError = prediction === 'error'
+                            const hasResult = prediction && prediction !== 'loading' && prediction !== 'error'
+                            const isShown = Boolean(prediction)
 
-                          return (
-                            <div className="fixture-row" key={fixture.fixture_id}>
-                              <div>
-                                {/* Use ESPN detail string for correct date/time */}
-                                <span className="fixture-meta">
-                                  {fixture.detail} · {fixture.venue}
-                                </span>
-                                <strong>
-                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.home_espn_id}`)}>
-                                    {fixture.home_team}
+                            return (
+                              <div className="fixture-row" key={fixture.fixture_id}>
+                                <div>
+                                  <span className="fixture-meta">
+                                    {fixture.detail} · {fixture.venue}
                                   </span>
-                                  {' vs '}
-                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.away_espn_id}`)}>
-                                    {fixture.away_team}
-                                  </span>
-                                </strong>
-                                {/* Show real score for completed and in progress matches */}
-                                {(completed || inProgress) && (
-                                  <span className="real-score">
-                                    {fixture.home_score} – {fixture.away_score}
-                                    {inProgress && (
-                                      <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
-                                        {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
-                                      </span>
-                                    )}
-                                  </span>
+                                  <strong>
+                                    <span className="team-name-link" onClick={() => navigate(`/team/${fixture.home_espn_id}`)}>
+                                      {fixture.home_team}
+                                    </span>
+                                    {' vs '}
+                                    <span className="team-name-link" onClick={() => navigate(`/team/${fixture.away_espn_id}`)}>
+                                      {fixture.away_team}
+                                    </span>
+                                  </strong>
+                                  {(completed || inProgress) && (
+                                    <span className="real-score">
+                                      {fixture.home_score} – {fixture.away_score}
+                                      {inProgress && (
+                                        <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
+                                          {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {!completed && (
+                                  <button
+                                    type="button"
+                                    disabled={isLoadingPrediction}
+                                    onClick={() =>
+                                      isShown
+                                        ? handleHideFixture(fixture.fixture_id)
+                                        : handleSimulateFixture(fixture)
+                                    }
+                                  >
+                                    {isLoadingPrediction ? 'Loading…' : isShown ? 'Hide' : 'Simulate'}
+                                  </button>
+                                )}
+
+                                {isError && <p className="form-note">Prediction failed.</p>}
+                                {hasResult && (
+                                  <ProbabilityBars
+                                    prediction={prediction}
+                                    home={{ name: fixture.home_team, code: fixture.home_code }}
+                                    away={{ name: fixture.away_team, code: fixture.away_code }}
+                                  />
                                 )}
                               </div>
+                            )
+                          })}
+                        </div>
 
-                              {/* No sim button for completed matches in results tab */}
-                              {!completed && (
+                        {groupFixtures.some((f) => !isMatchCompleted(f.status)) && (
+                          <button
+                            className="wide-button"
+                            type="button"
+                            disabled={isStandingsLoading}
+                            onClick={() => handleSimulateGroup(group, groupFixtures)}
+                          >
+                            {isStandingsLoading ? 'Simulating…' : 'Simulate remaining fixtures'}
+                          </button>
+                        )}
+                      </div>
+
+                      <StandingsTable
+                        standings={computeLiveStandings(group, groupFixtures, predictions, groupEspnStandings)}
+                        allFixtures={allFixtures}
+                      />
+                    </div>
+                  )}
+
+                  {currentTab === 'simulate' && (
+                    <div className="group-expanded-layout">
+                      <div>
+                        <div className="fixture-list">
+                          {groupFixtures.map((fixture) => {
+                            const prediction = predictions[fixture.fixture_id]
+                            const isLoadingPrediction = prediction === 'loading'
+                            const isError = prediction === 'error'
+                            const hasResult = prediction && prediction !== 'loading' && prediction !== 'error'
+                            const isShown = Boolean(prediction)
+
+                            return (
+                              <div className="fixture-row" key={fixture.fixture_id}>
+                                <div>
+                                  <span className="fixture-meta">
+                                    {fixture.detail} · {fixture.venue}
+                                  </span>
+                                  <strong>
+                                    <span className="team-name-link" onClick={() => navigate(`/team/${fixture.home_espn_id}`)}>
+                                      {fixture.home_team}
+                                    </span>
+                                    {' vs '}
+                                    <span className="team-name-link" onClick={() => navigate(`/team/${fixture.away_espn_id}`)}>
+                                      {fixture.away_team}
+                                    </span>
+                                  </strong>
+                                </div>
                                 <button
                                   type="button"
                                   disabled={isLoadingPrediction}
@@ -296,109 +377,37 @@ export default function GroupStage() {
                                 >
                                   {isLoadingPrediction ? 'Loading…' : isShown ? 'Hide' : 'Simulate'}
                                 </button>
-                              )}
+                                {isError && <p className="form-note">Prediction failed.</p>}
+                                {hasResult && (
+                                  <ProbabilityBars
+                                    prediction={prediction}
+                                    home={{ name: fixture.home_team, code: fixture.home_code }}
+                                    away={{ name: fixture.away_team, code: fixture.away_code }}
+                                  />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
 
-                              {isError && <p className="form-note">Prediction failed.</p>}
-                              {hasResult && (
-                                <ProbabilityBars
-                                  prediction={prediction}
-                                  home={{ name: fixture.home_team, code: fixture.home_code }}
-                                  away={{ name: fixture.away_team, code: fixture.away_code }}
-                                />
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      {/* Simulate remaining button — only show if there are non-completed fixtures */}
-                      {groupFixtures.some((f) => !isMatchCompleted(f.status)) && (
                         <button
                           className="wide-button"
                           type="button"
                           disabled={isStandingsLoading}
                           onClick={() => handleSimulateGroup(group, groupFixtures)}
                         >
-                          {isStandingsLoading ? 'Simulating…' : 'Simulate remaining fixtures'}
+                          {isStandingsLoading
+                            ? 'Simulating…'
+                            : simStandings[group.id]
+                              ? 'Reset simulation'
+                              : 'Simulate full group'}
                         </button>
-                      )}
-
-                      {/* Always show current standings — real scores for completed fixtures, predictions for simulated ones */}
-                      <StandingsTable
-                        standings={computeLiveStandings(group, groupFixtures, predictions)}
-                        allFixtures={allFixtures}
-                      />
-                    </>
-                  )}
-
-                  {/* Simulate tab */}
-                  {currentTab === 'simulate' && (
-                    <>
-                      <div className="fixture-list">
-                        {groupFixtures.map((fixture) => {
-                          const prediction = predictions[fixture.fixture_id]
-                          const isLoadingPrediction = prediction === 'loading'
-                          const isError = prediction === 'error'
-                          const hasResult = prediction && prediction !== 'loading' && prediction !== 'error'
-                          const isShown = Boolean(prediction)
-
-                          return (
-                            <div className="fixture-row" key={fixture.fixture_id}>
-                              <div>
-                                <span className="fixture-meta">
-                                  {fixture.detail} · {fixture.venue}
-                                </span>
-                                <strong>
-                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.home_espn_id}`)}>
-                                    {fixture.home_team}
-                                  </span>
-                                  {' vs '}
-                                  <span className="team-name-link" onClick={() => navigate(`/team/${fixture.away_espn_id}`)}>
-                                    {fixture.away_team}
-                                  </span>
-                                </strong>
-                              </div>
-                              <button
-                                type="button"
-                                disabled={isLoadingPrediction}
-                                onClick={() =>
-                                  isShown
-                                    ? handleHideFixture(fixture.fixture_id)
-                                    : handleSimulateFixture(fixture)
-                                }
-                              >
-                                {isLoadingPrediction ? 'Loading…' : isShown ? 'Hide' : 'Simulate'}
-                              </button>
-                              {isError && <p className="form-note">Prediction failed.</p>}
-                              {hasResult && (
-                                <ProbabilityBars
-                                  prediction={prediction}
-                                  home={{ name: fixture.home_team, code: fixture.home_code }}
-                                  away={{ name: fixture.away_team, code: fixture.away_code }}
-                                />
-                              )}
-                            </div>
-                          )
-                        })}
                       </div>
-
-                      <button
-                        className="wide-button"
-                        type="button"
-                        disabled={isStandingsLoading}
-                        onClick={() => handleSimulateGroup(group, groupFixtures)}
-                      >
-                        {isStandingsLoading
-                          ? 'Simulating…'
-                          : simStandings[group.id]
-                            ? 'Reset simulation'
-                            : 'Simulate full group'}
-                      </button>
 
                       {simStandings[group.id] && (
                         <StandingsTable standings={simStandings[group.id]} allFixtures={allFixtures} />
                       )}
-                    </>
+                    </div>
                   )}
 
                 </div>

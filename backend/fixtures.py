@@ -3,6 +3,7 @@ from cache import _get_cached
 
 # ESPN's unofficial public API - no key required
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings"
 
 # Date range covering the full group stage
 GROUP_STAGE_DATE_RANGE = "20260611-20260627"
@@ -81,3 +82,31 @@ def get_recent_results():
     all_fixtures = get_all_fixtures()
     completed_fixtures = [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_FULL_TIME']
     return completed_fixtures[-5:]
+
+
+def _fetch_standings():
+    response = requests.get(ESPN_STANDINGS_URL)
+    data = response.json()
+    result = {}
+    for group in data.get('children', []):
+        entries = []
+        for entry in group.get('standings', {}).get('entries', []):
+            team = entry['team']
+            stats = {s['name']: s['value'] for s in entry.get('stats', []) if 'value' in s}
+            entries.append({
+                'espn_id': team['id'],
+                'name': team['displayName'],
+                'gp': int(stats.get('gamesPlayed', 0)),
+                'w':  int(stats.get('wins', 0)),
+                'd':  int(stats.get('ties', 0)),
+                'l':  int(stats.get('losses', 0)),
+                'gf': int(stats.get('pointsFor', 0)),
+                'ga': int(stats.get('pointsAgainst', 0)),
+                'gd': int(stats.get('pointDifferential', 0)),
+                'points': int(stats.get('points', 0)),
+            })
+        result[group['name']] = entries
+    return result
+
+def get_standings():
+    return _get_cached('standings', ttl_seconds=30, fetch_fn=_fetch_standings)
