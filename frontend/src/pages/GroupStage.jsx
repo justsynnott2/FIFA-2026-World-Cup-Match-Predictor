@@ -4,7 +4,7 @@ import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
-import ProbabilityBars from '../components/ProbabilityBars'
+import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -260,11 +260,6 @@ export default function GroupStage() {
                           {groupFixtures.map((fixture) => {
                             const completed = isMatchCompleted(fixture.status)
                             const inProgress = isMatchLive(fixture.status)
-                            const prediction = predictions[fixture.fixture_id]
-                            const isLoadingPrediction = prediction === 'loading'
-                            const isError = prediction === 'error'
-                            const hasResult = prediction && prediction !== 'loading' && prediction !== 'error'
-                            const isShown = Boolean(prediction)
 
                             return (
                               <div className="fixture-row" key={fixture.fixture_id}>
@@ -292,48 +287,14 @@ export default function GroupStage() {
                                     </span>
                                   )}
                                 </div>
-
-                                {!completed && (
-                                  <button
-                                    type="button"
-                                    disabled={isLoadingPrediction}
-                                    onClick={() =>
-                                      isShown
-                                        ? handleHideFixture(fixture.fixture_id)
-                                        : handleSimulateFixture(fixture)
-                                    }
-                                  >
-                                    {isLoadingPrediction ? 'Loading…' : isShown ? 'Hide' : 'Simulate'}
-                                  </button>
-                                )}
-
-                                {isError && <p className="form-note">Prediction failed.</p>}
-                                {hasResult && (
-                                  <ProbabilityBars
-                                    prediction={prediction}
-                                    home={{ name: fixture.home_team, code: fixture.home_code }}
-                                    away={{ name: fixture.away_team, code: fixture.away_code }}
-                                  />
-                                )}
                               </div>
                             )
                           })}
                         </div>
-
-                        {groupFixtures.some((f) => !isMatchCompleted(f.status)) && (
-                          <button
-                            className="wide-button"
-                            type="button"
-                            disabled={isStandingsLoading}
-                            onClick={() => handleSimulateGroup(group, groupFixtures)}
-                          >
-                            {isStandingsLoading ? 'Simulating…' : 'Simulate remaining fixtures'}
-                          </button>
-                        )}
                       </div>
 
                       <StandingsTable
-                        standings={computeLiveStandings(group, groupFixtures, predictions, groupEspnStandings)}
+                        standings={computeLiveStandings(group, groupFixtures, {}, groupEspnStandings)}
                         allFixtures={allFixtures}
                       />
                     </div>
@@ -379,7 +340,7 @@ export default function GroupStage() {
                                 </button>
                                 {isError && <p className="form-note">Prediction failed.</p>}
                                 {hasResult && (
-                                  <ProbabilityBars
+                                  <SegmentedProbabilityBar
                                     prediction={prediction}
                                     home={{ name: fixture.home_team, code: fixture.home_code }}
                                     away={{ name: fixture.away_team, code: fixture.away_code }}

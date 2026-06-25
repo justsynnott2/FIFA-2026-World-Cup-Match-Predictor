@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getLiveFixtures, getAllFixtures, predictMatch } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
-import PredictionBar from '../components/PredictionBar'
+import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
 // Converts a UTC ISO date string to a readable local time e.g. "Sat, Jun 13 · 6:00 PM"
 function formatMatchDate(isoString) {
@@ -127,12 +127,10 @@ function FixtureCard({ fixture }) {
                 <div className="fixture-card fixture-card__back" onClick={() => setIsFlipped(false)}>
                     {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
                     {prediction && prediction !== 'loading' && prediction !== 'error' && (
-                        <PredictionBar
-                            home={prediction.home}
-                            draw={prediction.draw}
-                            away={prediction.away}
-                            homeName={fixture.home_team}
-                            awayName={fixture.away_team}
+                        <SegmentedProbabilityBar
+                            prediction={prediction}
+                            home={{ name: fixture.home_team, code: fixture.home_code }}
+                            away={{ name: fixture.away_team, code: fixture.away_code }}
                         />
                     )}
                     {prediction === 'error' && <p className="predict-loading">Prediction unavailable</p>}
@@ -245,12 +243,10 @@ function Countdown({ fixture, isKnownLive = false, label = 'Next Fixture' }) {
                         <p className="predict-loading">Fetching prediction…</p>
                     )}
                     {prediction && prediction !== 'loading' && prediction !== 'error' && (
-                        <PredictionBar
-                            home={prediction.home}
-                            draw={prediction.draw}
-                            away={prediction.away}
-                            homeName={fixture.home_team}
-                            awayName={fixture.away_team}
+                        <SegmentedProbabilityBar
+                            prediction={prediction}
+                            home={{ name: fixture.home_team, code: fixture.home_code }}
+                            away={{ name: fixture.away_team, code: fixture.away_code }}
                         />
                     )}
                 </>

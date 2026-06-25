@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getAllFixtures, getTeamSquad, getTeamNews, predictMatch } from '../utils/api'
-import PredictionBar from '../components/PredictionBar'
+import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 import { allTeams } from '../data/tournament'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
@@ -112,12 +112,10 @@ function TeamFixtureCard({ fixture, currentEspnId }) {
         <div className="fixture-card fixture-card__back" onClick={() => setIsFlipped(false)}>
           {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
           {prediction && prediction !== 'loading' && prediction !== 'error' && (
-            <PredictionBar
-              home={prediction.home}
-              draw={prediction.draw}
-              away={prediction.away}
-              homeName={fixture.home_team}
-              awayName={fixture.away_team}
+            <SegmentedProbabilityBar
+              prediction={prediction}
+              home={{ name: fixture.home_team, code: fixture.home_code }}
+              away={{ name: fixture.away_team, code: fixture.away_code }}
             />
           )}
           {prediction === 'error' && <p className="predict-loading">Prediction unavailable</p>}
