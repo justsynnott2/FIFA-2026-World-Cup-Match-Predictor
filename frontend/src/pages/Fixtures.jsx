@@ -144,7 +144,7 @@ function FixtureCard({ fixture }) {
 }
 
 // Featured match card at the top — shows live match if one is in progress, otherwise next upcoming
-function Countdown({ fixture, isKnownLive = false }) {
+function Countdown({ fixture, isKnownLive = false, label = 'Next Fixture' }) {
     const navigate = useNavigate()
     const [timeLeft, setTimeLeft] = useState('')
     const [prediction, setPrediction] = useState(undefined)
@@ -227,7 +227,7 @@ function Countdown({ fixture, isKnownLive = false }) {
                 </>
             ) : (
                 <>
-                    <span className="eyebrow">Next Fixture</span>
+                    <span className="eyebrow">{label}</span>
                     <div className="countdown-card__match">
                         <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
                         <span className="team-name-link" onClick={() => fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`)}>
@@ -315,6 +315,10 @@ export default function Fixtures() {
         .filter(f => isMatchCompleted(f.status))
         .sort((a, b) => new Date(b.date) - new Date(a.date))
 
+    const nextKickoffFixtures = allUpcoming.length > 0
+        ? allUpcoming.filter(f => f.date.slice(0, 16) === allUpcoming[0].date.slice(0, 16))
+        : []
+
     const upcomingSlice = allUpcoming.slice(upcomingPage * PAGE_SIZE, (upcomingPage + 1) * PAGE_SIZE)
     const resultsSlice  = allResults.slice(resultsPage  * PAGE_SIZE, (resultsPage  + 1) * PAGE_SIZE)
 
@@ -331,7 +335,14 @@ export default function Fixtures() {
                 ? liveFixtures.map((fixture) => (
                     <Countdown key={fixture.fixture_id} fixture={fixture} isKnownLive={true} />
                 ))
-                : <Countdown fixture={allUpcoming[0]} isKnownLive={false} />
+                : nextKickoffFixtures.map(fixture => (
+                    <Countdown
+                        key={fixture.fixture_id}
+                        fixture={fixture}
+                        isKnownLive={false}
+                        label={nextKickoffFixtures.length > 1 ? 'Next Fixtures' : 'Next Fixture'}
+                    />
+                ))
             }
 
             <div className="fixtures-grid">
