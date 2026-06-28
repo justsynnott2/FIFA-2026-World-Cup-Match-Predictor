@@ -773,11 +773,13 @@ select {
 }
 
 .fixture-card__meta {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   color: var(--muted);
   font-size: 0.8rem;
 }
+.fixture-card__meta > :nth-child(2) { text-align: center; }
+.fixture-card__meta > :nth-child(3) { text-align: right; }
 
 .fixture-card__teams {
   display: grid;

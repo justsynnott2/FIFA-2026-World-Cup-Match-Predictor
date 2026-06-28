@@ -10,6 +10,15 @@ GROUP_STAGE_DATE_RANGE = "20260611-20260627"
 KNOCKOUT_DATE_RANGE = "20260628-20260719"
 
 
+def _extract_group(alt_game_note):
+    marker = ', Group '
+    idx = alt_game_note.find(marker)
+    if idx == -1:
+        return ''
+    char = alt_game_note[idx + len(marker):]
+    return char[0] if char else ''
+
+
 def _normalize_event(raw_event):
     """
     Flattens a raw ESPN event object into a clean dict.
@@ -46,6 +55,7 @@ def _normalize_event(raw_event):
         'away_score': away_team.get('score'),
         'away_form': away_team.get('form'),
         'round': raw_event.get('season', {}).get('slug', ''),
+        'group': _extract_group(competition.get('altGameNote', '')),
     }
 
 

@@ -31,6 +31,21 @@ function FormDots({ form }) {
     )
 }
 
+const KNOCKOUT_ROUND_LABELS = {
+    'round-of-32':     'Round of 32',
+    'round-of-16':     'Round of 16',
+    'quarterfinals':   'Quarterfinals',
+    'semifinals':      'Semifinals',
+    'final':           'Final',
+    '3rd-place-match': '3rd Place',
+}
+
+function getFixtureLabel(fixture) {
+    if (KNOCKOUT_ROUND_LABELS[fixture.round]) return KNOCKOUT_ROUND_LABELS[fixture.round]
+    if (fixture.group) return 'Group ' + fixture.group
+    return ''
+}
+
 // Single fixture card used for both upcoming and results
 function FixtureCard({ fixture }) {
     const navigate = useNavigate()
@@ -97,10 +112,13 @@ function FixtureCard({ fixture }) {
         </div>
     )
 
+    const roundLabel = getFixtureLabel(fixture) || null
+
     const metaMarkup = (
         <div className="fixture-card__meta">
             <span>{formatMatchDate(fixture.date)}</span>
             <span>{fixture.venue}, {fixture.city}</span>
+            {roundLabel && <span>{roundLabel}</span>}
         </div>
     )
 

@@ -44,10 +44,21 @@ function TeamFixtureCard({ fixture, currentEspnId }) {
     setIsFlipped(true)
   }
 
+  const ROUND_LABELS = {
+    'round-of-32':     'Round of 32',
+    'round-of-16':     'Round of 16',
+    'quarterfinals':   'Quarterfinals',
+    'semifinals':      'Semifinals',
+    'final':           'Final',
+    '3rd-place-match': '3rd Place',
+  }
+  const roundLabel = ROUND_LABELS[fixture.round] ?? (fixture.group ? 'Group ' + fixture.group : null)
+
   const metaMarkup = (
     <div className="fixture-card__meta">
       <span>{formatMatchDate(fixture.date)}</span>
       <span>{fixture.venue}, {fixture.city}</span>
+      {roundLabel && <span>{roundLabel}</span>}
     </div>
   )
 
@@ -236,7 +247,7 @@ export default function TeamPage() {
 
           {/* Group Stage Fixtures */}
           <div>
-            <h2>Group Stage Fixtures</h2>
+            <h2>Fixtures</h2>
             <div className="fixture-list" style={{ marginTop: '1rem' }}>
               {teamFixtures.map((f) => (
                 <TeamFixtureCard key={f.fixture_id} fixture={f} currentEspnId={espnId} />
