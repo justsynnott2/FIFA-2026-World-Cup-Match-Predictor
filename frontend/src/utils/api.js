@@ -50,6 +50,20 @@ export async function getRecentResults() {
   return response.json()
 }
 
+export async function getKnockoutFixtures() {
+  const response = await fetch(`${API_BASE}/schedule/knockout`)
+  if (!response.ok) throw new Error('Failed to fetch knockout fixtures')
+  return response.json()
+}
+
+export async function predictKnockout(homeName, awayName) {
+  const { home, draw, away } = await predictMatch(homeName, awayName)
+  if (home + away === 0) return { home: 50, away: 50 }
+  const homeAdj = home + draw * home / (home + away)
+  const awayAdj = away + draw * away / (home + away)
+  return { home: Math.round(homeAdj), away: Math.round(awayAdj) }
+}
+
 export async function getTeamSquad(espnId) {
   const response = await fetch(`${API_BASE}/team/${espnId}/squad`)
   if (!response.ok) throw new Error('Failed to fetch squad')
