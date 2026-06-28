@@ -52,6 +52,7 @@ function FixtureCard({ fixture }) {
     const isCompleted = isMatchCompleted(fixture.status)
     const isLive = isMatchLive(fixture.status)
     const isUpcoming = !isCompleted && !isLive
+    const isPredictable = !!fixture.home_logo && !!fixture.away_logo
     const [isFlipped, setIsFlipped] = useState(false)
     const [prediction, setPrediction] = useState(undefined)
 
@@ -70,10 +71,11 @@ function FixtureCard({ fixture }) {
 
             {/* Home team */}
             <div className="fixture-card__team">
-                <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />
+                {fixture.home_logo && <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />}
                 <span
-                    className="fixture-card__name team-name-link"
-                    onClick={(e) => { e.stopPropagation(); fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`) }}
+                    className={fixture.home_logo ? 'fixture-card__name team-name-link' : 'fixture-card__name'}
+                    style={!fixture.home_logo ? { color: 'var(--muted)' } : undefined}
+                    onClick={fixture.home_logo ? (e) => { e.stopPropagation(); fixture.home_espn_id && navigate(`/team/${fixture.home_espn_id}`) } : undefined}
                 >
                     {fixture.home_team}
                 </span>
@@ -101,12 +103,13 @@ function FixtureCard({ fixture }) {
             <div className="fixture-card__team fixture-card__team--away">
                 <FormDots form={fixture.away_form} />
                 <span
-                    className="fixture-card__name team-name-link"
-                    onClick={(e) => { e.stopPropagation(); fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`) }}
+                    className={fixture.away_logo ? 'fixture-card__name team-name-link' : 'fixture-card__name'}
+                    style={!fixture.away_logo ? { color: 'var(--muted)' } : undefined}
+                    onClick={fixture.away_logo ? (e) => { e.stopPropagation(); fixture.away_espn_id && navigate(`/team/${fixture.away_espn_id}`) } : undefined}
                 >
                     {fixture.away_team}
                 </span>
-                <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />
+                {fixture.away_logo && <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />}
             </div>
 
         </div>
@@ -122,7 +125,7 @@ function FixtureCard({ fixture }) {
         </div>
     )
 
-    if (!isUpcoming) {
+    if (!isUpcoming || !isPredictable) {
         return (
             <article className="fixture-card">
                 {metaMarkup}
