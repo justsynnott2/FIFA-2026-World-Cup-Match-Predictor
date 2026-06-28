@@ -7,6 +7,7 @@ ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world
 
 # Date range covering the full group stage
 GROUP_STAGE_DATE_RANGE = "20260611-20260627"
+KNOCKOUT_DATE_RANGE = "20260628-20260719"
 
 
 def _normalize_event(raw_event):
@@ -44,44 +45,46 @@ def _normalize_event(raw_event):
         'away_logo': away_team['team']['logo'],
         'away_score': away_team.get('score'),
         'away_form': away_team.get('form'),
+        'round': raw_event.get('season', {}).get('slug', ''),
     }
 
 
-def _fetch_all_group_stage():
-    """
-    Fetches all group stage fixtures from ESPN in a single request.
-    The date range query returns events with their current status,
-    so completed matches show STATUS_FULL_TIME and upcoming show STATUS_SCHEDULED.
-    """
+def _fetch_group_stage():
     response = requests.get(ESPN_BASE, params={'dates': GROUP_STAGE_DATE_RANGE, 'limit': 100})
-    response_data = response.json()
-    raw_events = response_data.get('events', [])
-    return [_normalize_event(raw_event) for raw_event in raw_events]
+    raw_events = response.json().get('events', [])
+    return [_normalize_event(e) for e in raw_events]
 
+
+def _fetch_knockout():
+    response = requests.get(ESPN_BASE, params={'dates': KNOCKOUT_DATE_RANGE, 'limit': 100})
+    raw_events = response.json().get('events', [])
+    return [_normalize_event(e) for e in raw_events]
+
+
+def get_group_stage_fixtures():
+    """Returns all group stage fixtures cached at 30s TTL."""
+    return _get_cached('group_stage_fixtures', ttl_seconds=30, fetch_fn=_fetch_group_stage)
+
+def get_knockout_fixtures():
+    """Returns all knockout stage fixtures cached at 30s TTL."""
+    return _get_cached('knockout_fixtures', ttl_seconds=30, fetch_fn=_fetch_knockout)
 
 def get_all_fixtures():
-    """
-    Returns all group stage fixtures, using cache to avoid hammering ESPN.
-    TTL is 5 minutes - short enough to reflect results soon after they happen.
-    """
-    return _get_cached('all_fixtures', ttl_seconds=30, fetch_fn=_fetch_all_group_stage)
+    """Returns all 104 World Cup fixtures merged and sorted by date. Not separately cached — sources are."""
+    return sorted(get_group_stage_fixtures() + get_knockout_fixtures(), key=lambda f: f['date'])
 
 def get_live_fixtures():
     """Returns all fixtures currently in progress."""
-    all_fixtures = get_all_fixtures()
-    return [f for f in all_fixtures if f['status'] not in ('STATUS_FULL_TIME', 'STATUS_SCHEDULED')]
+    return [f for f in get_all_fixtures() if f['status'] not in ('STATUS_FULL_TIME', 'STATUS_SCHEDULED')]
 
 def get_upcoming_fixtures():
-    """Returns in-progress and upcoming scheduled fixtures (excludes completed)."""
-    all_fixtures = get_all_fixtures()
-    return [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_SCHEDULED'][:5]
-
+    """Returns the next 5 scheduled fixtures."""
+    return [f for f in get_all_fixtures() if f['status'] == 'STATUS_SCHEDULED'][:5]
 
 def get_recent_results():
-    """Returns the last 10 completed fixtures with final scores."""
-    all_fixtures = get_all_fixtures()
-    completed_fixtures = [fixture for fixture in all_fixtures if fixture['status'] == 'STATUS_FULL_TIME']
-    return completed_fixtures[-5:]
+    """Returns the last 5 completed fixtures with final scores."""
+    completed = [f for f in get_all_fixtures() if f['status'] == 'STATUS_FULL_TIME']
+    return completed[-5:]
 
 
 def _fetch_standings():

@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from predict import predict_match
-from fixtures import get_all_fixtures, get_live_fixtures, get_upcoming_fixtures, get_recent_results, get_standings
+from fixtures import get_all_fixtures, get_group_stage_fixtures, get_knockout_fixtures, get_live_fixtures, get_upcoming_fixtures, get_recent_results, get_standings
 from teams import get_team_squad, get_team_news
 
 app = FastAPI()
@@ -37,8 +37,19 @@ def predict(match_request: MatchRequest):
 
 @app.get("/schedule/all")
 def all_fixtures():
-    """Returns all group stage fixtures with current status and scores from ESPN."""
+    """Returns all 104 World Cup fixtures — group stage and knockout — with current status and scores."""
     return get_all_fixtures()
+
+@app.get("/schedule/group")
+def group_fixtures():
+    """Returns all 72 group stage fixtures with current status and scores from ESPN."""
+    return get_group_stage_fixtures()
+
+
+@app.get("/schedule/knockout")
+def knockout_fixtures():
+    """Returns all 32 knockout stage fixtures with current status and scores from ESPN."""
+    return get_knockout_fixtures()
 
 @app.get("/schedule/live")
 def live_fixtures():
