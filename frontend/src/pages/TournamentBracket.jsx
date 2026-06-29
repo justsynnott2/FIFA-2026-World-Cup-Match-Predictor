@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getKnockoutFixtures, predictKnockout } from '../utils/api'
-import { buildBracketState, isRealTeam } from '../utils/bracket'
+import { buildBracketState, isRealTeam, BRACKET_STRUCTURE, buildFixtureLookup, parsePlaceholderRef } from '../utils/bracket'
 import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
 
 const BRACKET_HEADERS = [
@@ -38,11 +38,6 @@ function fixtureToProps(fixture) {
 function probFor(match, team) {
   if (!match?.probs || !team) return null
   return match.teamA?.code === team.code ? match.probs.home : match.probs.away
-}
-
-function loserOfSim(sf) {
-  if (!sf?.winner) return null
-  return sf.winner.code === sf.teamA?.code ? sf.teamB : sf.teamA
 }
 
 function BracketMatch({ teamAName, teamBName, winnerCode, teamACode, teamBCode }) {
@@ -107,7 +102,8 @@ export default function TournamentBracket() {
   const [loading, setLoading]                   = useState(false)
   const [error, setError]                       = useState(null)
 
-  const realBracket = knockoutFixtures ? buildBracketState(knockoutFixtures) : null
+  const realBracket  = knockoutFixtures ? buildBracketState(knockoutFixtures) : null
+  const fixtureLookup = knockoutFixtures ? buildFixtureLookup(knockoutFixtures) : {}
 
   useEffect(() => {
     let timeoutId
@@ -132,57 +128,110 @@ export default function TournamentBracket() {
     }
   }, [])
 
+  function resolveTeam(teamName, teamCode, teamLogo, mode, simResults) {
+    if (isRealTeam(null, teamLogo)) {
+      return { name: teamName, code: teamCode, logo: teamLogo }
+    }
+    const ref = parsePlaceholderRef(teamName)
+    if (!ref) return null
+    const { fixtureId, loser } = ref
+    if (mode === 'remaining') {
+      const srcFixture = fixtureLookup[fixtureId]
+      if (srcFixture && isMatchCompleted(srcFixture.status)) {
+        const homeWon = parseFloat(srcFixture.home_score) > parseFloat(srcFixture.away_score)
+        const winner = homeWon
+          ? { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+          : { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+        const loserTeam = homeWon
+          ? { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+          : { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+        return loser ? loserTeam : winner
+      }
+    }
+    const srcResult = simResults[fixtureId]
+    if (!srcResult) return null
+    return loser ? srcResult.loser : srcResult.winner
+  }
+
   async function runSimulation(mode) {
     if (!realBracket) return null
-    const roundOrder = ['round-of-32', 'round-of-16', 'quarterfinals', 'semifinals', 'final']
-    const newSim = {}
-    let prevRound = null
+    const simResults = {}
 
+    const roundOrder = ['round-of-32', 'round-of-16', 'quarterfinals', 'semifinals']
     for (const roundKey of roundOrder) {
-      const espnFixtures = realBracket[roundKey] ?? []
-      const results = []
-
-      for (let i = 0; i < espnFixtures.length; i++) {
-        const fixture = espnFixtures[i]
+      const ids = [
+        ...BRACKET_STRUCTURE.left[roundKey],
+        ...BRACKET_STRUCTURE.right[roundKey],
+      ]
+      for (const fixtureId of ids) {
+        const fixture = fixtureLookup[fixtureId]
+        if (!fixture) continue
 
         let teamA, teamB
-        if (prevRound === null) {
-          teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo }
-          teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo }
-        } else if (mode === 'remaining' && isMatchCompleted(fixture.status)) {
+        if (mode === 'remaining' && isMatchCompleted(fixture.status)) {
           teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo }
           teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo }
         } else {
-          teamA = prevRound[i * 2]?.winner ?? null
-          teamB = prevRound[i * 2 + 1]?.winner ?? null
+          teamA = resolveTeam(fixture.home_team, fixture.home_code, fixture.home_logo, mode, simResults)
+          teamB = resolveTeam(fixture.away_team, fixture.away_code, fixture.away_logo, mode, simResults)
         }
 
-        let winner, source, probs = null
+        let winner, loserTeam, source, probs = null
         if (mode === 'remaining' && isMatchCompleted(fixture.status)) {
           const homeWon = parseFloat(fixture.home_score) > parseFloat(fixture.away_score)
           winner = homeWon ? teamA : teamB
+          loserTeam = homeWon ? teamB : teamA
           source = 'real'
         } else if (teamA && teamB && isRealTeam(null, teamA.logo) && isRealTeam(null, teamB.logo)) {
           probs = await predictKnockout(teamA.name, teamB.name)
           winner = probs.home >= probs.away ? teamA : teamB
+          loserTeam = probs.home >= probs.away ? teamB : teamA
           source = 'sim'
         } else {
           winner = null
+          loserTeam = null
           source = 'tbd'
         }
 
-        results.push({ fixture, teamA, teamB, winner, source, probs })
+        simResults[fixtureId] = { teamA, teamB, winner, loser: loserTeam, source, probs }
       }
+    }
 
-      newSim[roundKey] = results
-      prevRound = results
+    // final
+    const finalFixture = realBracket['final']?.[0] ?? null
+    if (finalFixture) {
+      let teamA, teamB
+      if (mode === 'remaining' && isMatchCompleted(finalFixture.status)) {
+        teamA = { name: finalFixture.home_team, code: finalFixture.home_code, logo: finalFixture.home_logo }
+        teamB = { name: finalFixture.away_team, code: finalFixture.away_code, logo: finalFixture.away_logo }
+      } else {
+        teamA = resolveTeam(finalFixture.home_team, finalFixture.home_code, finalFixture.home_logo, mode, simResults)
+        teamB = resolveTeam(finalFixture.away_team, finalFixture.away_code, finalFixture.away_logo, mode, simResults)
+      }
+      let winner, loserTeam, source, probs = null
+      if (mode === 'remaining' && isMatchCompleted(finalFixture.status)) {
+        const homeWon = parseFloat(finalFixture.home_score) > parseFloat(finalFixture.away_score)
+        winner = homeWon ? teamA : teamB
+        loserTeam = homeWon ? teamB : teamA
+        source = 'real'
+      } else if (teamA && teamB && isRealTeam(null, teamA.logo) && isRealTeam(null, teamB.logo)) {
+        probs = await predictKnockout(teamA.name, teamB.name)
+        winner = probs.home >= probs.away ? teamA : teamB
+        loserTeam = probs.home >= probs.away ? teamB : teamA
+        source = 'sim'
+      } else {
+        winner = null
+        loserTeam = null
+        source = 'tbd'
+      }
+      simResults[String(finalFixture.fixture_id)] = { teamA, teamB, winner, loser: loserTeam, source, probs }
     }
 
     // 3rd place — losers of the two semifinals
-    const sfResults = newSim['semifinals'] ?? []
-    const sf1 = sfResults[0], sf2 = sfResults[1]
-    const loser1 = sf1?.winner ? (sf1.winner.code === sf1.teamA?.code ? sf1.teamB : sf1.teamA) : null
-    const loser2 = sf2?.winner ? (sf2.winner.code === sf2.teamA?.code ? sf2.teamB : sf2.teamA) : null
+    const sfLeftId  = BRACKET_STRUCTURE.left.semifinals[0]
+    const sfRightId = BRACKET_STRUCTURE.right.semifinals[0]
+    const loser1 = simResults[sfLeftId]?.loser ?? null
+    const loser2 = simResults[sfRightId]?.loser ?? null
     const thirdFixture = realBracket['3rd-place-match']?.[0] ?? null
 
     let thirdMatch
@@ -190,17 +239,21 @@ export default function TournamentBracket() {
       const homeWon = parseFloat(thirdFixture.home_score) > parseFloat(thirdFixture.away_score)
       const t3A = { name: thirdFixture.home_team, code: thirdFixture.home_code, logo: thirdFixture.home_logo }
       const t3B = { name: thirdFixture.away_team, code: thirdFixture.away_code, logo: thirdFixture.away_logo }
-      thirdMatch = { fixture: thirdFixture, teamA: t3A, teamB: t3B, winner: homeWon ? t3A : t3B, source: 'real', probs: null }
+      thirdMatch = { teamA: t3A, teamB: t3B, winner: homeWon ? t3A : t3B, loser: homeWon ? t3B : t3A, source: 'real', probs: null }
     } else if (loser1 && loser2 && isRealTeam(null, loser1.logo) && isRealTeam(null, loser2.logo)) {
       const p = await predictKnockout(loser1.name, loser2.name)
       const winner = p.home >= p.away ? loser1 : loser2
-      thirdMatch = { fixture: thirdFixture, teamA: loser1, teamB: loser2, winner, source: 'sim', probs: p }
+      const loserTeam = p.home >= p.away ? loser2 : loser1
+      thirdMatch = { teamA: loser1, teamB: loser2, winner, loser: loserTeam, source: 'sim', probs: p }
     } else {
-      thirdMatch = { fixture: thirdFixture, teamA: loser1, teamB: loser2, winner: null, source: 'tbd', probs: null }
+      thirdMatch = { teamA: loser1, teamB: loser2, winner: null, loser: null, source: 'tbd', probs: null }
     }
 
-    newSim['3rd-place-match'] = [thirdMatch]
-    return newSim
+    if (thirdFixture) {
+      simResults[String(thirdFixture.fixture_id)] = thirdMatch
+    }
+
+    return simResults
   }
 
   async function handleSimulate(mode) {
@@ -222,42 +275,48 @@ export default function TournamentBracket() {
     setSimMode(null)
   }
 
-  function getCol(roundKey, start, end) {
-    const expected = end - start
-    const arr = simBracket
-      ? (simBracket[roundKey] ?? []).slice(start, end).map(simMatchToProps)
-      : (realBracket?.[roundKey] ?? []).slice(start, end).map(fixtureToProps)
-    while (arr.length < expected) arr.push(TBD_PROPS)
-    return arr
+  function getCol(side, roundKey) {
+    const ids = BRACKET_STRUCTURE[side][roundKey]
+    return ids.map(id => {
+      const fixture = fixtureLookup[id]
+      if (!fixture) return TBD_PROPS
+      if (simBracket?.[id]) return simMatchToProps(simBracket[id])
+      return fixtureToProps(fixture)
+    })
   }
 
   const cols = {
-    r32Left:  getCol('round-of-32', 0, 8),
-    r16Left:  getCol('round-of-16', 0, 4),
-    qfLeft:   getCol('quarterfinals', 0, 2),
-    sfLeft:   getCol('semifinals', 0, 1),
-    sfRight:  getCol('semifinals', 1, 2),
-    qfRight:  getCol('quarterfinals', 2, 4),
-    r16Right: getCol('round-of-16', 4, 8),
-    r32Right: getCol('round-of-32', 8, 16),
+    r32Left:  getCol('left',  'round-of-32'),
+    r16Left:  getCol('left',  'round-of-16'),
+    qfLeft:   getCol('left',  'quarterfinals'),
+    sfLeft:   getCol('left',  'semifinals'),
+    sfRight:  getCol('right', 'semifinals'),
+    qfRight:  getCol('right', 'quarterfinals'),
+    r16Right: getCol('right', 'round-of-16'),
+    r32Right: getCol('right', 'round-of-32'),
   }
 
   function getCenterProps(roundKey) {
-    if (simBracket?.[roundKey]?.[0]) return simMatchToProps(simBracket[roundKey][0])
-    if (realBracket?.[roundKey]?.[0]) return fixtureToProps(realBracket[roundKey][0])
-    return null
+    const fixture = realBracket?.[roundKey]?.[0]
+    if (!fixture) return null
+    const id = String(fixture.fixture_id)
+    if (simBracket?.[id]) return simMatchToProps(simBracket[id])
+    return fixtureToProps(fixture)
   }
 
-  const finalSim    = simBracket?.['final']?.[0] ?? null
-  const champion    = finalSim?.winner ?? null
-  const runnerUp    = champion ? (finalSim.teamA?.code === champion.code ? finalSim.teamB : finalSim.teamA) : null
-  const sfSim       = simBracket?.['semifinals'] ?? []
+  const finalFixture = realBracket?.['final']?.[0]
+  const finalSim     = finalFixture ? simBracket?.[String(finalFixture.fixture_id)] ?? null : null
+  const champion     = finalSim?.winner ?? null
+  const runnerUp     = champion ? (finalSim.teamA?.code === champion.code ? finalSim.teamB : finalSim.teamA) : null
+  const sfLeftId     = BRACKET_STRUCTURE.left.semifinals[0]
+  const sfRightId    = BRACKET_STRUCTURE.right.semifinals[0]
+  const sfSim        = [simBracket?.[sfLeftId], simBracket?.[sfRightId]].filter(Boolean)
 
   const oddsTeams = finalSim ? [
-    { team: champion,           prob: probFor(finalSim, champion),  label: 'Champion' },
-    { team: runnerUp,           prob: probFor(finalSim, runnerUp),  label: 'Runner-up' },
-    { team: loserOfSim(sfSim[0]), prob: probFor(sfSim[0], loserOfSim(sfSim[0])), label: 'Semifinalist' },
-    { team: loserOfSim(sfSim[1]), prob: probFor(sfSim[1], loserOfSim(sfSim[1])), label: 'Semifinalist' },
+    { team: champion,             prob: probFor(finalSim, champion),              label: 'Champion' },
+    { team: runnerUp,             prob: probFor(finalSim, runnerUp),              label: 'Runner-up' },
+    { team: sfSim[0]?.loser,      prob: probFor(sfSim[0], sfSim[0]?.loser),      label: 'Semifinalist' },
+    { team: sfSim[1]?.loser,      prob: probFor(sfSim[1], sfSim[1]?.loser),      label: 'Semifinalist' },
   ].filter(row => row.team) : []
 
   return (
