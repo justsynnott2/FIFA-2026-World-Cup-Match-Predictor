@@ -75,3 +75,9 @@ export async function getTeamNews(espnId) {
   if (!response.ok) throw new Error('Failed to fetch news')
   return response.json()
 }
+
+export async function getStandings() {
+  const response = await fetch(`${API_BASE}/schedule/standings`)
+  if (!response.ok) throw new Error('Failed to fetch standings')
+  return response.json()
+}

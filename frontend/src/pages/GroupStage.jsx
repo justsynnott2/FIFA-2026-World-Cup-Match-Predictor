@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { groups } from '../data/tournament'
-import { predictMatch, getAllFixtures } from '../utils/api'
+import { predictMatch, getAllFixtures, getStandings } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
-
-const API_BASE = 'http://localhost:8000'
 
 function getEspnId(code, fixtures) {
   for (const f of fixtures) {
@@ -121,10 +119,9 @@ export default function GroupStage() {
         setIsLoading(false)
       }
 
-      fetch(`${API_BASE}/schedule/standings`)
-        .then(r => r.json())
+      getStandings()
         .then(setEspnStandings)
-        .catch(() => {})
+        .catch(() => { })
     }
     fetchInitialData()
   }, [])
