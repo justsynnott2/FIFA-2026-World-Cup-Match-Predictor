@@ -1,7 +1,7 @@
 import { toModelName } from '../data/tournament'
 
 // Base URL for the FastAPI backend
-const API_BASE = 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
 // Predicts win/draw/loss probabilities for a given matchup
 export async function predictMatch(homeName, awayName) {
