@@ -58,6 +58,10 @@ def _normalize_event(raw_event):
         'away_logo': away_team['team']['logo'],
         'away_score': away_team.get('score'),
         'away_form': away_team.get('form'),
+        'home_winner': home_team.get('winner', False),
+        'away_winner': away_team.get('winner', False),
+        'home_shootout_score': home_team.get('shootoutScore'),
+        'away_shootout_score': away_team.get('shootoutScore'),
         'round': raw_event.get('season', {}).get('slug', ''),
         'group': _extract_group(competition.get('altGameNote', '')),
     }

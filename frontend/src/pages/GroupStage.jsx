@@ -325,6 +325,11 @@ export default function GroupStage() {
                           {(completed || inProgress) && (
                             <span className="real-score">
                               {fixture.home_score} – {fixture.away_score}
+                              {fixture.status === 'STATUS_FINAL_PEN' && (
+                                <span className="fixture-card__pens">
+                                  ({fixture.home_shootout_score}–{fixture.away_shootout_score} pens)
+                                </span>
+                              )}
                               {inProgress && (
                                 <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
                                   {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}

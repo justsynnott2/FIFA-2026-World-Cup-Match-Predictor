@@ -770,6 +770,7 @@ select {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 0.5rem 1.5rem rgba(16, 65, 55, 0.05);
+  min-height: 7.5rem;
 }
 
 .fixture-card__meta {
@@ -955,6 +956,12 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+}
+
+.fixture-card__pens {
+  font-size: 0.78rem;
+  color: var(--muted);
+  display: block;
 }
 
 .team-name-link {

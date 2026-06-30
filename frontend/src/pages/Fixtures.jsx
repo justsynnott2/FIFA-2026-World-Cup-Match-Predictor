@@ -85,7 +85,14 @@ function FixtureCard({ fixture }) {
             {/* Score, VS, or live score */}
             <div className="fixture-card__score">
                 {isCompleted
-                    ? <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                    ? <>
+                        <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                        {fixture.status === 'STATUS_FINAL_PEN' && (
+                            <span className="fixture-card__pens">
+                                ({fixture.home_shootout_score}–{fixture.away_shootout_score} pens)
+                            </span>
+                        )}
+                      </>
                     : isLive
                         ? (
                             <div className="fixture-card__live">
