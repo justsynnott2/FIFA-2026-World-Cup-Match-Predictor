@@ -9,6 +9,10 @@ ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world
 GROUP_STAGE_DATE_RANGE = "20260611-20260627"
 KNOCKOUT_DATE_RANGE = "20260628-20260719"
 
+#ESPN MATCH STATUSES
+STATUS_UPCOMING = {'STATUS_SCHEDULED'}
+STATUS_FINAL = {'STATUS_FULL_TIME', 'STATUS_FINAL_PEN'}
+
 
 def _extract_group(alt_game_note):
     marker = ', Group '
@@ -85,16 +89,15 @@ def get_all_fixtures():
 
 def get_live_fixtures():
     """Returns all fixtures currently in progress."""
-    return [f for f in get_all_fixtures() if f['status'] not in ('STATUS_FULL_TIME', 'STATUS_SCHEDULED')]
+    return [f for f in get_all_fixtures() if f['status'] not in STATUS_FINAL | STATUS_UPCOMING]
 
 def get_upcoming_fixtures():
     """Returns the next 5 scheduled fixtures."""
-    return [f for f in get_all_fixtures() if f['status'] == 'STATUS_SCHEDULED'][:5]
+    return [f for f in get_all_fixtures() if f['status'] in STATUS_UPCOMING][:5]
 
 def get_recent_results():
     """Returns the last 5 completed fixtures with final scores."""
-    completed = [f for f in get_all_fixtures() if f['status'] == 'STATUS_FULL_TIME']
-    return completed[-5:]
+    return [f for f in get_all_fixtures() if f['status'] in STATUS_FINAL][:5]
 
 
 def _fetch_standings():

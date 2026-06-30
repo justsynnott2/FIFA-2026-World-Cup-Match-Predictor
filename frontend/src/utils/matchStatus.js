@@ -10,6 +10,11 @@ const LIVE_STATUSES = [
     STATUS_DELAYED,
 ]
 
+const COMPLETE_STATUSES = [
+    'STATUS_FULL_TIME',
+    'STATUS_FINAL_PEN'
+]
+
 // Returns true if a fixture is currently in progress (any live phase)
 export function isMatchLive(status) {
     return LIVE_STATUSES.includes(status)
@@ -17,5 +22,5 @@ export function isMatchLive(status) {
 
 // Returns true if a fixture has been completed
 export function isMatchCompleted(status) {
-    return status === 'STATUS_FULL_TIME'
+    return COMPLETE_STATUSES.includes(status)
 }

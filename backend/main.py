@@ -58,12 +58,12 @@ def live_fixtures():
 
 @app.get("/schedule/upcoming")
 def upcoming_fixtures():
-    """Returns the next 10 scheduled group stage fixtures from ESPN."""
+    """Returns the next 5 scheduled group stage fixtures from ESPN."""
     return get_upcoming_fixtures()
 
 @app.get("/schedule/results")
 def recent_results():
-    """Returns the last 10 completed group stage fixtures with scores from ESPN."""
+    """Returns the last 5 completed group stage fixtures with scores from ESPN."""
     return get_recent_results()
 
 @app.get("/schedule/standings")
