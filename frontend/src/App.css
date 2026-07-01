@@ -784,7 +784,7 @@ select {
 
 .fixture-card__teams {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.75rem;
 }
@@ -793,6 +793,7 @@ select {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .fixture-card__team--away {
@@ -811,6 +812,7 @@ select {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fixture-card__score {
