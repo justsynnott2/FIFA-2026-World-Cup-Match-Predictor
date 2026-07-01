@@ -15,7 +15,10 @@ app = FastAPI()
 # Allow all origins for now - tighten this to the deployed frontend URL before going live
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fifa-2026-world-cup-match-predictor.vercel.app"],
+    allow_origins=[
+        "https://fifa-2026-world-cup-match-predictor.vercel.app",
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
