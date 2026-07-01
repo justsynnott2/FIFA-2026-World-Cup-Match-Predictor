@@ -1195,6 +1195,14 @@ select {
   overflow: hidden;
 }
 
+.pred-bar__seg:first-child {
+  border-radius: 0.4rem 0 0 0.4rem;
+}
+
+.pred-bar__seg:last-child {
+  border-radius: 0 0.4rem 0.4rem 0;
+}
+
 .pred-bar__seg--home { background: var(--green); }
 .pred-bar__seg--draw { background: var(--gold); }
 .pred-bar__seg--away { background: var(--red); }
