@@ -12,6 +12,7 @@ const LIVE_STATUSES = [
 
 const COMPLETE_STATUSES = [
     'STATUS_FULL_TIME',
+    'STATUS_FINAL_AET',
     'STATUS_FINAL_PEN'
 ]
 
