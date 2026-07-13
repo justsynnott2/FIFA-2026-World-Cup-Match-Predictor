@@ -1,5 +1,11 @@
 import time
 
+# Generic in-process TTL cache used by fixtures.py and teams.py. Exports: _get_cached.
+
+# Plain in-memory dict — not shared across worker processes and reset on every
+# redeploy/restart. Fine here since every cached value is just a re-fetchable
+# proxy of ESPN's API (see the per-endpoint TTL choices in fixtures.py/teams.py),
+# not something that needs to survive a restart or be consistent across workers.
 _cache = {}
 
 

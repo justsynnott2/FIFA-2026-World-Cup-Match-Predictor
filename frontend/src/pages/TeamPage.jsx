@@ -5,6 +5,12 @@ import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 import { allTeams } from '../data/tournament'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
+// Per-team page (squad, fixtures, news), keyed by ESPN team ID from the route
+// param. There's no dedicated "team" endpoint, so team identity (name, code,
+// logo, confederation) is derived by finding any fixture involving this ESPN
+// ID and reading that team's own fields off it — see identityFixture below.
+// Default export: TeamPage.
+
 const SQUAD_SECTIONS = [
   { key: 'GK',  label: 'Goalkeepers' },
   { key: 'DEF', label: 'Defenders'   },
@@ -79,6 +85,7 @@ function TeamFixtureCard({ fixture, currentEspnId }) {
         {completed
           ? <>
               <strong>{fixture.home_score} – {fixture.away_score}</strong>
+              {/* Shootout tally shown separately from the score, same as Fixtures.jsx */}
               {fixture.status === 'STATUS_FINAL_PEN' && (
                 <span className="fixture-card__pens">
                   ({fixture.home_shootout_score}–{fixture.away_shootout_score} pens)
@@ -177,6 +184,9 @@ export default function TeamPage() {
     return <section className="page"><p className="empty-state">Loading…</p></section>
   }
 
+  // Any fixture involving this team works as an "identity" source — there's no
+  // team-lookup endpoint, so name/code/logo are just read off whichever side
+  // of this fixture matches the route's ESPN ID.
   const identityFixture = allFixtures.find(
     (f) => f.home_espn_id === espnId || f.away_espn_id === espnId
   )

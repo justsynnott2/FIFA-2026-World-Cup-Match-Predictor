@@ -1,3 +1,9 @@
+// Turns a group's fixtures + predictions into a sortable standings table, in
+// two modes: computeLiveStandings (real results where played, model
+// predictions for the rest) and computeSimStandings (model predictions for
+// every fixture, ignoring any real results already in).
+// Exports: computeLiveStandings, computeSimStandings.
+
 // Awards points and blended prob based on a model prediction
 function awardPointsFromPrediction(points, probSum, gameCount, fixture, prediction) {
     probSum[fixture.home_code] += prediction.home / 100
@@ -65,6 +71,14 @@ function buildStandings(group, points, probSum, gameCount, espnStandings) {
                 gd: espn?.gd ?? null,
             }
         })
+        // Tiebreak chain: points, then goal difference, then average predicted
+        // win probability across the team's fixtures. gd only reflects reality
+        // once matches are actually played (espn?.gd ?? 0 above), so on the
+        // Simulate tab — where most/all fixtures are still hypothetical —
+        // every team's gd collapses to 0 and probSum ends up doing the real
+        // tiebreaking. probSum was chosen over a simulated goal difference
+        // because the model only outputs win/draw/loss probabilities, not
+        // predicted scorelines, so there's no synthetic GD to sort on instead.
         .sort((a, b) =>
             b.points - a.points ||
             (b.gd ?? 0) - (a.gd ?? 0) ||

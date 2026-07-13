@@ -1,4 +1,14 @@
+# Feature-engineering helpers used by predict.py: form, goal averages,
+# head-to-head record, and Elo rating, each computed as of a given cutoff date
+# using only matches strictly before it (so predicting a past matchup doesn't
+# leak future results into its own features).
+
 def get_form_last_10(team, date, df, n=10):
+    """
+    Win rate (1 per win, 0.5 per draw) over a team's last n matches (default
+    10) strictly before `date`. Returns 0.5 (average form) if the team has no
+    prior matches in df, so a team with no history doesn't get a NaN feature.
+    """
     team_matches = df[
         ((df['home_team'] == team) | (df['away_team'] == team)) &
         (df['date'] < date)
@@ -23,6 +33,11 @@ def get_form_last_10(team, date, df, n=10):
     return wins / len(team_matches)
 
 def get_goal_avg_last_10(team, date, df, n=10):
+    """
+    (goals scored, goals conceded) per-match averages over a team's last n
+    matches (default 10) strictly before `date`. Returns (0.0, 0.0) if the team
+    has no prior matches, rather than NaN.
+    """
     team_matches = df[
         ((df['home_team'] == team) | (df['away_team'] == team)) &
         (df['date'] < date)
@@ -44,6 +59,12 @@ def get_goal_avg_last_10(team, date, df, n=10):
     return goals_scored / len(team_matches), goals_conceded / len(team_matches)
 
 def head_to_head_last_10(team1, team2, date, df, n=10):
+    """
+    (team1 win rate, team2 win rate) over their last n head-to-head meetings
+    (default 10) strictly before `date`, regardless of which side was home in
+    each past meeting. Returns (0.5, 0.5) if the teams have never met, so a
+    first-ever meeting doesn't produce a NaN feature.
+    """
     matches = df[
         ((df['home_team'] == team1) & (df['away_team'] == team2)) |
         ((df['home_team'] == team2) & (df['away_team'] == team1))
@@ -78,6 +99,11 @@ def head_to_head_last_10(team1, team2, date, df, n=10):
     return team1_wins / total, team2_wins / total
 
 def get_elo_rating(team, date, elo_df, default=1500):
+    """
+    A team's most recent Elo rating strictly before `date`. Returns `default`
+    (1500, a neutral starting Elo) if the team has no rating history yet —
+    relevant for World Cup debutants or teams missing from the ratings table.
+    """
     team_elo = elo_df[
         (elo_df['team'] == team) &
         (elo_df['date'] < date)

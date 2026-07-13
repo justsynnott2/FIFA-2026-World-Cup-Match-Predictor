@@ -4,6 +4,9 @@ import { predictMatch } from '../utils/api'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
 
+// Custom Match page: lets the user pick any two of the 48 World Cup teams and
+// run the model prediction on demand. Default export: CustomMatch.
+
 export default function CustomMatch() {
   const [homeCode, setHomeCode] = useState('USA')
   const [awayCode, setAwayCode] = useState('BRA')
@@ -55,6 +58,8 @@ export default function CustomMatch() {
               ))}
             </select>
           </label>
+          {/* Disabled for identical teams: the model has no concept of a team playing
+              itself, and predictMatch's backend call would reject it anyway. */}
           <button
             type="button"
             disabled={homeCode === awayCode || loading}

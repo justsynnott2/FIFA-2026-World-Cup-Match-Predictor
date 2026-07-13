@@ -9,7 +9,16 @@ from helpers import (
     head_to_head_last_10, get_elo_rating
 )
 
+# Loads the trained model (via data.py) and turns a (home_team, away_team) pair
+# into win/draw/loss probabilities. Exports: predict_match.
+
 def _raw_predict(home_team, away_team):
+    """
+    Builds the model's feature vector for one home/away direction and returns
+    raw win/draw/loss probabilities for exactly that direction (not mirrored).
+    Used directly for matches involving a host nation; predict_match calls this
+    twice and averages for all other matchups (see below).
+    """
     # Will base results off of current date, so we get the most recent data
     today = pd.Timestamp.today()
 
@@ -22,6 +31,12 @@ def _raw_predict(home_team, away_team):
 
     home_h2h, away_h2h = head_to_head_last_10(home_team, away_team, today, competitive)
 
+    # USA, Mexico, and Canada are the three co-hosts of the 2026 tournament, so
+    # any match involving at least one of them has a real home-field effect
+    # (crowd, travel, familiarity) even when the "home" designation is
+    # otherwise arbitrary (e.g. group-draw seeding rather than an actual away
+    # trip). Matches between two non-hosts are marked neutral so the model
+    # doesn't apply a home-advantage signal to a matchup that doesn't have one.
     host_countries = ['United States', 'Mexico', 'Canada']
     if home_team in host_countries and away_team in host_countries:
         neutral = True
@@ -59,7 +74,9 @@ def _raw_predict(home_team, away_team):
         'away_confederation_encoded': away_confederation_encoded,
     }])
 
-    # Predict probabilities for home win, draw, away win
+    # Predict probabilities for home win, draw, away win.
+    # The model's classes are ordered [away_win, draw, home_win] (index 0/1/2),
+    # hence the reversed indices below when mapping into named fields.
     proba = model.predict_proba(feature_input)[0]
 
     return {
@@ -71,6 +88,16 @@ def _raw_predict(home_team, away_team):
     }
 
 def predict_match(home_team, away_team):
+    """
+    Public entry point: predicts win/draw/loss probabilities for a matchup.
+
+    For matches between two non-host nations, runs _raw_predict in both
+    directions and averages the results (with home/away swapped back to match
+    the caller's orientation) to cancel out any residual home-field signal the
+    model learned, since which team is "home" for a neutral-site World Cup
+    fixture is arbitrary. Host-nation matches skip the averaging so the model's
+    real home-advantage signal for USA/Mexico/Canada is preserved.
+    """
     if home_team == away_team:
         return {"message": "Home team and away team cannot be the same."}
 

@@ -2,6 +2,11 @@ import joblib
 import pandas as pd
 import os
 
+# Loads the trained model/encoders and historical match data at import time,
+# and builds the static lookup tables (confederation_map, tournament_weights)
+# predict.py's feature engineering depends on. Everything here runs once on
+# module import, not per-request.
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 
@@ -17,7 +22,14 @@ away_confederation_le = joblib.load(os.path.join(MODELS_DIR, 'away_confederation
 competitive['date'] = pd.to_datetime(competitive['date'])
 elo_ratings_df['date'] = pd.to_datetime(elo_ratings_df['date'], format='mixed')
 
-# Mirror neutral matches to remove home/away bias
+# Mirror neutral matches to remove home/away bias.
+# For historical matches played at a neutral site, which side was recorded as
+# "home" vs "away" is arbitrary, but the model still has home/away-shaped
+# features (home_form, away_form, etc.). Duplicating each neutral match with
+# the sides swapped (and the result flipped to match) is training-data
+# augmentation that cancels out any spurious home/away pattern the model would
+# otherwise learn from neutral fixtures — the same swap-and-average idea
+# predict_match applies at inference time for non-host matchups.
 def flip_result(result):
     if result == 'home_win':
         return 'away_win'

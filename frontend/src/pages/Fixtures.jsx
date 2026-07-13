@@ -4,7 +4,14 @@ import { getLiveFixtures, getAllFixtures, predictMatch } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
-// Converts a UTC ISO date string to a readable local time e.g. "Sat, Jun 13 · 6:00 PM"
+// Fixtures & Results page: a live/upcoming countdown card plus paginated
+// "Upcoming" and "Results" lists. Owns the app's most active polling loop,
+// since it's the page most likely to be open during a live match.
+// Default export: Fixtures.
+
+/**
+ * Converts a UTC ISO date string to a readable local time, e.g. "Sat, Jun 13 · 6:00 PM".
+ */
 function formatMatchDate(isoString) {
     const date = new Date(isoString)
     return date.toLocaleString('en-US', {
@@ -46,7 +53,11 @@ function getFixtureLabel(fixture) {
     return ''
 }
 
-// Single fixture card used for both upcoming and results
+/**
+ * Single fixture card used for both the "Upcoming" and "Results" columns.
+ * Upcoming, predictable fixtures flip on click to reveal a lazily-fetched
+ * SegmentedProbabilityBar prediction on the back face.
+ */
 function FixtureCard({ fixture }) {
     const navigate = useNavigate()
     const isCompleted = isMatchCompleted(fixture.status)
@@ -87,6 +98,10 @@ function FixtureCard({ fixture }) {
                 {isCompleted
                     ? <>
                         <strong>{fixture.home_score} – {fixture.away_score}</strong>
+                        {/* Penalty shootouts don't change the normal score (still 90/120 min result);
+                            the shootout tally comes from separate home/away_shootout_score fields
+                            the backend only populates for STATUS_FINAL_PEN, so it's shown as an
+                            extra line rather than folded into the main score. */}
                         {fixture.status === 'STATUS_FINAL_PEN' && (
                             <span className="fixture-card__pens">
                                 ({fixture.home_shootout_score}–{fixture.away_shootout_score} pens)
@@ -169,7 +184,11 @@ function FixtureCard({ fixture }) {
     )
 }
 
-// Featured match card at the top — shows live match if one is in progress, otherwise next upcoming
+/**
+ * Featured match card at the top of the page — shows a live match if one is in
+ * progress (with its own live score/clock), otherwise a ticking countdown to
+ * the next scheduled kickoff plus a prefetched prediction.
+ */
 function Countdown({ fixture, isKnownLive = false, label = 'Next Fixture' }) {
     const navigate = useNavigate()
     const [timeLeft, setTimeLeft] = useState('')
@@ -283,6 +302,14 @@ function Countdown({ fixture, isKnownLive = false, label = 'Next Fixture' }) {
     )
 }
 
+/**
+ * Picks how long to wait before the next fixtures poll, in three tiers: fast
+ * (30s) while a match is actually live so scores/clock feel near-real-time;
+ * medium (60s) once kickoff is within 30 minutes, to catch the transition into
+ * "live" promptly without polling at full speed the whole time beforehand;
+ * otherwise slow (5 min), since nothing on the page is expected to change and
+ * there's no reason to hit the backend/ESPN more often than that.
+ */
 function computeDelay(live, upcoming) {
     if (live.length > 0) return 30_000
     const next = upcoming[0]
@@ -302,6 +329,12 @@ export default function Fixtures() {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState(null)
 
+    // Polls via a recursive setTimeout rather than setInterval because the poll
+    // interval is dynamic (see computeDelay) and setInterval can't change its
+    // own delay. Rescheduling only after the previous fetch resolves also
+    // serializes requests — with setInterval on a slow network, a fetch that
+    // takes longer than the interval could overlap with the next one firing;
+    // setTimeout guarantees at most one fixtures fetch in flight at a time.
     useEffect(() => {
         let timerId
 

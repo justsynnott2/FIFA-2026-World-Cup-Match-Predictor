@@ -3,6 +3,12 @@ import { getKnockoutFixtures, predictKnockout } from '../utils/api'
 import { buildBracketState, isRealTeam, BRACKET_STRUCTURE, buildFixtureLookup, parsePlaceholderRef } from '../utils/bracket'
 import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
 
+// Tournament Bracket page: renders the full 32-match knockout bracket (Round
+// of 32 through Final + 3rd place) using the fixed fixture-ID topology from
+// bracket.js, and can overlay a client-side simulation (predicted winners
+// filling in TBD/placeholder slots) without touching real results.
+// Default export: TournamentBracket.
+
 const BRACKET_HEADERS = [
   'Round of 32', 'Round of 16', 'Quarterfinals', 'Semifinals',
   'Final',
@@ -128,6 +134,14 @@ export default function TournamentBracket() {
     }
   }, [])
 
+  /**
+   * Resolves what team actually occupies a bracket slot. A slot is one of:
+   * a real team already assigned by ESPN (has a logo); the winner/loser of an
+   * earlier fixture that's already been played (only in 'remaining' mode); or
+   * still an unresolved placeholder (e.g. "Round of 16 3 Winner") whose feeder
+   * match hasn't been simulated yet, in which case this returns null and the
+   * slot renders as TBD until runSimulation reaches that feeder fixture.
+   */
   function resolveTeam(teamName, teamCode, teamLogo, mode, simResults) {
     if (isRealTeam(null, teamLogo)) {
       return { name: teamName, code: teamCode, logo: teamLogo }
@@ -153,6 +167,16 @@ export default function TournamentBracket() {
     return loser ? srcResult.loser : srcResult.winner
   }
 
+  /**
+   * Runs a full bracket simulation and returns simResults keyed by fixture ID.
+   * Two modes: 'remaining' keeps every already-played result as-is and only
+   * predicts fixtures that haven't happened yet; 'scratch' predicts every
+   * single match, including ones ESPN already has a real result for, so the
+   * whole bracket plays out hypothetically. Rounds must be walked in strict
+   * order (R32 → R16 → QF → SF → Final) because each round's matchups depend
+   * on the previous round's winners — a QF slot can't be resolved until its
+   * feeding R16 fixture has a winner in simResults.
+   */
   async function runSimulation(mode) {
     if (!realBracket) return null
     const simResults = {}
@@ -227,7 +251,9 @@ export default function TournamentBracket() {
       simResults[String(finalFixture.fixture_id)] = { teamA, teamB, winner, loser: loserTeam, source, probs }
     }
 
-    // 3rd place — losers of the two semifinals
+    // 3rd place isn't its own bracket branch — it's always contested by
+    // whichever two teams lost the semifinals, so it's derived here from
+    // simResults' semifinal losers rather than resolved via placeholder text.
     const sfLeftId  = BRACKET_STRUCTURE.left.semifinals[0]
     const sfRightId = BRACKET_STRUCTURE.right.semifinals[0]
     const loser1 = simResults[sfLeftId]?.loser ?? null

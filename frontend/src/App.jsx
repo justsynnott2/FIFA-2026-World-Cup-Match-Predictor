@@ -7,6 +7,11 @@ import TournamentBracket from './pages/TournamentBracket'
 import CustomMatch from './pages/CustomMatch'
 import TeamPage from './pages/TeamPage'
 
+// App shell: top bar with nav plus the route table for every page. No routing
+// logic beyond react-router's Routes/Route lives here. Default export: App.
+
+// Single source for both the rendered nav links and (implicitly) the routes
+// below — each entry's `to` must match a <Route path> for the nav to work.
 const navLinks = [
   { label: 'Overview',           to: '/',        end: true },
   { label: 'Fixtures',           to: '/fixtures'           },

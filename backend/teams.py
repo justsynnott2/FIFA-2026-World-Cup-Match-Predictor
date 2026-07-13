@@ -1,11 +1,20 @@
 import requests
 from cache import _get_cached
 
+# ESPN squad/news client for a single team, keyed by ESPN team ID. Both
+# functions cache their result and fail soft (return an empty/default shape
+# instead of raising) so a squad or news outage doesn't break the rest of the
+# team page. Exports: get_team_squad, get_team_news.
+
 POSITION_MAP = {'G': 'GK', 'D': 'DEF', 'M': 'MID', 'F': 'FWD'}
 
 
 def get_team_squad(espn_id: str):
-    """Returns squad grouped by position for a given ESPN team ID."""
+    """Returns squad grouped by position for a given ESPN team ID.
+
+    Cached 600s per team ID — rosters rarely change mid-tournament, so this can
+    be cached far longer than fixtures/scores.
+    """
     def fetch():
         try:
             url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/teams/{espn_id}/roster"
@@ -38,13 +47,21 @@ def get_team_squad(espn_id: str):
                 })
             return {'team': team, 'roster': roster}
         except Exception:
+            # Broad catch is deliberate: any failure parsing ESPN's roster
+            # response (missing fields, network error, etc.) degrades to an
+            # empty roster rather than a 500 — the rest of the team page
+            # (fixtures, news) still renders fine without a squad.
             return {'team': {}, 'roster': {'GK': [], 'DEF': [], 'MID': [], 'FWD': []}}
 
     return _get_cached(f'squad_{espn_id}', ttl_seconds=600, fetch_fn=fetch)
 
 
 def get_team_news(espn_id: str):
-    """Returns latest news articles for a given ESPN team ID."""
+    """Returns latest news articles for a given ESPN team ID.
+
+    Cached 300s per team ID — shorter than the squad cache since news is more
+    time-sensitive.
+    """
     def fetch():
         try:
             url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news"
@@ -63,6 +80,7 @@ def get_team_news(espn_id: str):
                 for a in articles
             ]
         except Exception:
+            # Same fail-soft rationale as get_team_squad above.
             return []
 
     return _get_cached(f'news_{espn_id}', ttl_seconds=300, fetch_fn=fetch)

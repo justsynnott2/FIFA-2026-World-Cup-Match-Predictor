@@ -6,6 +6,11 @@ import { computeLiveStandings, computeSimStandings } from '../utils/standings'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
+// Group Stage page: a 3-column grid of all 12 groups, each expandable into a
+// detail panel with two tabs — "Results" (real fixtures/standings) and
+// "Simulate" (model-predicted standings for fixtures not yet played).
+// Default export: GroupStage.
+
 function getEspnId(code, fixtures) {
   for (const f of fixtures) {
     if (f.home_code === code) return f.home_espn_id
@@ -108,6 +113,9 @@ export default function GroupStage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // One-time initial load: fixtures gate the loading spinner (the page can't
+  // render groups without them), while ESPN standings are best-effort and load
+  // independently — a standings failure shouldn't block the rest of the page.
   useEffect(() => {
     async function fetchInitialData() {
       try {
@@ -126,6 +134,9 @@ export default function GroupStage() {
     fetchInitialData()
   }, [])
 
+  // Separate recurring poll (same dynamic setTimeout pattern as Fixtures.jsx)
+  // that only refreshes fixtures — standings aren't re-polled here since
+  // ESPN's own standings table updates on a much slower cadence than scores.
   useEffect(() => {
     let timerId
 
@@ -170,6 +181,10 @@ export default function GroupStage() {
     })
   }
 
+  // Toggles a group's "Simulate remaining fixtures" run. On toggle-off, both
+  // the cached sim standings AND that group's per-fixture predictions are
+  // cleared (not just hidden) so the next run re-predicts from scratch rather
+  // than reusing stale numbers.
   async function handleSimulateGroup(group, groupFixtures) {
     const isSimulated = Boolean(simStandings[group.id])
 
@@ -322,6 +337,7 @@ export default function GroupStage() {
                           {(completed || inProgress) && (
                             <span className="real-score">
                               {fixture.home_score} – {fixture.away_score}
+                              {/* Shootout tally shown separately from the score, same as Fixtures.jsx */}
                               {fixture.status === 'STATUS_FINAL_PEN' && (
                                 <span className="fixture-card__pens">
                                   ({fixture.home_shootout_score}–{fixture.away_shootout_score} pens)

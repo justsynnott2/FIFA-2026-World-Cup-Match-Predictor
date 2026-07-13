@@ -1,6 +1,11 @@
 import requests
 from cache import _get_cached
 
+# ESPN scoreboard/standings client: fetches raw ESPN data, flattens it into the
+# shape the frontend expects, and caches both fetches at a 30s TTL. Exports:
+# get_group_stage_fixtures, get_knockout_fixtures, get_all_fixtures,
+# get_live_fixtures, get_upcoming_fixtures, get_recent_results, get_standings.
+
 # ESPN's unofficial public API - no key required
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
 ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings"
@@ -15,6 +20,7 @@ STATUS_FINAL = {'STATUS_FULL_TIME', 'STATUS_FINAL_AET','STATUS_FINAL_PEN'}
 
 
 def _extract_group(alt_game_note):
+    """Pulls the single-letter group (e.g. 'A') out of ESPN's free-text altGameNote field, or '' if absent."""
     marker = ', Group '
     idx = alt_game_note.find(marker)
     if idx == -1:
@@ -60,6 +66,10 @@ def _normalize_event(raw_event):
         'away_form': away_team.get('form'),
         'home_winner': home_team.get('winner', False),
         'away_winner': away_team.get('winner', False),
+        # Only populated by ESPN when a knockout match went to penalties
+        # (status STATUS_FINAL_PEN); the regular home/away_score above stays
+        # the 90/120-minute score. The frontend renders these as a separate
+        # "(x-y pens)" line rather than folding them into the main score.
         'home_shootout_score': home_team.get('shootoutScore'),
         'away_shootout_score': away_team.get('shootoutScore'),
         'round': raw_event.get('season', {}).get('slug', ''),
@@ -68,17 +78,26 @@ def _normalize_event(raw_event):
 
 
 def _fetch_group_stage():
+    """Hits ESPN's scoreboard for the group-stage date range and normalizes every event."""
     response = requests.get(ESPN_BASE, params={'dates': GROUP_STAGE_DATE_RANGE, 'limit': 100})
     raw_events = response.json().get('events', [])
     return [_normalize_event(e) for e in raw_events]
 
 
 def _fetch_knockout():
+    """Hits ESPN's scoreboard for the knockout date range and normalizes every event."""
     response = requests.get(ESPN_BASE, params={'dates': KNOCKOUT_DATE_RANGE, 'limit': 100})
     raw_events = response.json().get('events', [])
     return [_normalize_event(e) for e in raw_events]
 
 
+# 30s TTL: short enough that scores/status feel live while a match is in
+# progress, long enough to avoid hammering ESPN's unofficial (rate-limited,
+# undocumented) endpoint on every frontend poll. This is a second layer of
+# throttling on top of the frontend's own dynamic polling interval
+# (computeDelay in Fixtures.jsx, 30s-5min depending on match state) — either
+# one alone would be enough to protect ESPN, but together they mean a burst of
+# simultaneous frontend tabs still only hits ESPN once per 30s.
 def get_group_stage_fixtures():
     """Returns all group stage fixtures cached at 30s TTL."""
     return _get_cached('group_stage_fixtures', ttl_seconds=30, fetch_fn=_fetch_group_stage)
@@ -92,19 +111,20 @@ def get_all_fixtures():
     return sorted(get_group_stage_fixtures() + get_knockout_fixtures(), key=lambda f: f['date'])
 
 def get_live_fixtures():
-    """Returns all fixtures currently in progress."""
+    """Returns all fixtures currently in progress (status not in the upcoming or final sets)."""
     return [f for f in get_all_fixtures() if f['status'] not in STATUS_FINAL | STATUS_UPCOMING]
 
 def get_upcoming_fixtures():
-    """Returns the next 5 scheduled fixtures."""
+    """Returns the next 5 scheduled fixtures, in whatever order get_all_fixtures produced (date-sorted)."""
     return [f for f in get_all_fixtures() if f['status'] in STATUS_UPCOMING][:5]
 
 def get_recent_results():
-    """Returns the last 5 completed fixtures with final scores."""
+    """Returns the last 5 completed fixtures with final scores, in date order (not most-recent-first)."""
     return [f for f in get_all_fixtures() if f['status'] in STATUS_FINAL][:5]
 
 
 def _fetch_standings():
+    """Hits ESPN's standings endpoint and flattens each group's entries into the shape the frontend expects."""
     response = requests.get(ESPN_STANDINGS_URL)
     data = response.json()
     result = {}
@@ -129,4 +149,5 @@ def _fetch_standings():
     return result
 
 def get_standings():
+    """Returns ESPN group standings keyed by group name (e.g. 'Group A'), cached at 30s TTL."""
     return _get_cached('standings', ttl_seconds=30, fetch_fn=_fetch_standings)

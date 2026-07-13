@@ -5,6 +5,10 @@ import { predictMatch } from '../utils/api'
 import TeamBadge from '../components/TeamBadge'
 import ProbabilityBars from '../components/ProbabilityBars'
 
+// Landing page: intro copy plus a sample prediction card (fixed USA vs Brazil
+// matchup) to demonstrate the model before the user picks their own matchup.
+// Default export: Overview.
+
 export default function Overview() {
   const navigate = useNavigate()
   const home = allTeams.find((t) => t.code === 'USA')
@@ -14,7 +18,10 @@ export default function Overview() {
   useEffect(() => {
     predictMatch(home.name, away.name)
       .then(setSample)
-      .catch(() => { }) // silently fail — card just stays blank if backend is down
+      // Silently fail — this is a decorative sample, not something the user
+      // asked for, so if the backend is down the card just stays in its
+      // loading state rather than surfacing an error to the landing page.
+      .catch(() => { })
   }, [])
 
   return (
