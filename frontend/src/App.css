@@ -779,6 +779,19 @@ select {
   margin-bottom: 1rem;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.pagination-controls__label {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .fixture-card {
   display: grid;
   gap: 0.75rem;

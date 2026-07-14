@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { getAllFixtures, getTeamSquad, getTeamNews, predictMatch } from '../utils/api'
-import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
+import { useParams } from 'react-router-dom'
+import { getAllFixtures, getTeamSquad, getTeamNews } from '../utils/api'
+import FixtureCard from '../components/FixtureCard'
 import { allTeams } from '../data/tournament'
-import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 
 // Per-team page (squad, fixtures, news), keyed by ESPN team ID from the route
 // param. There's no dedicated "team" endpoint, so team identity (name, code,
@@ -17,142 +16,6 @@ const SQUAD_SECTIONS = [
   { key: 'MID', label: 'Midfielders' },
   { key: 'FWD', label: 'Forwards'    },
 ]
-
-function formatMatchDate(isoString) {
-  const date = new Date(isoString)
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
-
-function TeamFixtureCard({ fixture, currentEspnId }) {
-  const navigate = useNavigate()
-  const completed = isMatchCompleted(fixture.status)
-  const live = isMatchLive(fixture.status)
-  const isUpcoming = !completed && !live
-  const isPredictable = !!fixture.home_logo && !!fixture.away_logo
-  const homeIsSelf = fixture.home_espn_id === currentEspnId
-  const awayIsSelf = fixture.away_espn_id === currentEspnId
-  const [isFlipped, setIsFlipped] = useState(false)
-  const [prediction, setPrediction] = useState(undefined)
-
-  function handleFlip() {
-    if (!isFlipped && prediction === undefined) {
-      setPrediction('loading')
-      predictMatch(fixture.home_team, fixture.away_team)
-        .then(result => setPrediction(result))
-        .catch(() => setPrediction('error'))
-    }
-    setIsFlipped(true)
-  }
-
-  const ROUND_LABELS = {
-    'round-of-32':     'Round of 32',
-    'round-of-16':     'Round of 16',
-    'quarterfinals':   'Quarterfinals',
-    'semifinals':      'Semifinals',
-    'final':           'Final',
-    '3rd-place-match': '3rd Place',
-  }
-  const roundLabel = ROUND_LABELS[fixture.round] ?? (fixture.group ? 'Group ' + fixture.group : null)
-
-  const metaMarkup = (
-    <div className="fixture-card__meta">
-      <span>{formatMatchDate(fixture.date)}</span>
-      <span>{fixture.venue}, {fixture.city}</span>
-      {roundLabel && <span>{roundLabel}</span>}
-    </div>
-  )
-
-  const teamsMarkup = (
-    <div className="fixture-card__teams">
-      <div className="fixture-card__team">
-        {fixture.home_logo && <img src={fixture.home_logo} alt={fixture.home_team} className="fixture-card__logo" />}
-        <span
-          className={`fixture-card__name${(!homeIsSelf && fixture.home_logo) ? ' team-name-link' : ''}`}
-          style={!fixture.home_logo ? { color: 'var(--muted)' } : undefined}
-          onClick={(!homeIsSelf && fixture.home_logo) ? (e) => { e.stopPropagation(); navigate(`/team/${fixture.home_espn_id}`) } : undefined}
-        >
-          {fixture.home_team}
-        </span>
-      </div>
-      <div className="fixture-card__score">
-        {completed
-          ? <>
-              <strong>{fixture.home_score} – {fixture.away_score}</strong>
-              {/* Shootout tally shown separately from the score, same as Fixtures.jsx */}
-              {fixture.status === 'STATUS_FINAL_PEN' && (
-                <span className="fixture-card__pens">
-                  ({fixture.home_shootout_score}–{fixture.away_shootout_score} pens)
-                </span>
-              )}
-            </>
-          : live
-            ? (
-              <div className="fixture-card__live">
-                <strong>{fixture.home_score} – {fixture.away_score}</strong>
-                <span className={fixture.status === STATUS_DELAYED ? 'delay-badge' : 'live-badge'}>
-                  {fixture.status === STATUS_DELAYED ? 'DELAY' : 'LIVE'}
-                </span>
-              </div>
-            )
-            : <span className="fixture-card__vs">vs</span>
-        }
-      </div>
-      <div className="fixture-card__team fixture-card__team--away">
-        <span
-          className={`fixture-card__name${(!awayIsSelf && fixture.away_logo) ? ' team-name-link' : ''}`}
-          style={!fixture.away_logo ? { color: 'var(--muted)' } : undefined}
-          onClick={(!awayIsSelf && fixture.away_logo) ? (e) => { e.stopPropagation(); navigate(`/team/${fixture.away_espn_id}`) } : undefined}
-        >
-          {fixture.away_team}
-        </span>
-        {fixture.away_logo && <img src={fixture.away_logo} alt={fixture.away_team} className="fixture-card__logo" />}
-      </div>
-    </div>
-  )
-
-  if (!isUpcoming || !isPredictable) {
-    return (
-      <article className="fixture-card">
-        {metaMarkup}
-        {teamsMarkup}
-      </article>
-    )
-  }
-
-  return (
-    <div className={`fixture-card-wrapper${isFlipped ? ' fixture-card-flipped' : ''}`}>
-      <div className="fixture-card-flipper">
-
-        {/* Front face */}
-        <article className="fixture-card fixture-card__front" onClick={handleFlip}>
-          {metaMarkup}
-          {teamsMarkup}
-        </article>
-
-        {/* Back face */}
-        <div className="fixture-card fixture-card__back" onClick={() => setIsFlipped(false)}>
-          {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
-          {prediction && prediction !== 'loading' && prediction !== 'error' && (
-            <SegmentedProbabilityBar
-              prediction={prediction}
-              home={{ name: fixture.home_team, code: fixture.home_code }}
-              away={{ name: fixture.away_team, code: fixture.away_code }}
-            />
-          )}
-          {prediction === 'error' && <p className="predict-loading">Prediction unavailable</p>}
-        </div>
-
-      </div>
-    </div>
-  )
-}
 
 export default function TeamPage() {
   const { espnId } = useParams()
@@ -270,7 +133,7 @@ export default function TeamPage() {
             <h2>Fixtures</h2>
             <div className="fixture-list" style={{ marginTop: '1rem' }}>
               {teamFixtures.map((f) => (
-                <TeamFixtureCard key={f.fixture_id} fixture={f} currentEspnId={espnId} />
+                <FixtureCard key={f.fixture_id} fixture={f} currentEspnId={espnId} />
               ))}
             </div>
           </div>
