@@ -106,7 +106,7 @@ def predict_match(home_team, away_team):
     away_is_host = away_team in host_countries
 
     # For non-host matches, average both directions to remove residual bias
-    if not home_is_host and not away_is_host:
+    if home_is_host == away_is_host:
         pred1 = _raw_predict(home_team, away_team)
         pred2 = _raw_predict(away_team, home_team)
         return {

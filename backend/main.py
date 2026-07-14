@@ -17,7 +17,6 @@ from teams import get_team_squad, get_team_news
 
 app = FastAPI()
 
-# Allow all origins for now - tighten this to the deployed frontend URL before going live
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
