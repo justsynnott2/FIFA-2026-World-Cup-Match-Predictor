@@ -26,6 +26,17 @@ function getGroupFixtures(group, allFixtures) {
   )
 }
 
+// True once every fixture in the group has a settled (non-loading, non-error)
+// prediction. Drives both the "Reset simulation"/"Simulate remaining
+// fixtures" button label and handleSimulateGroup's own reset-vs-simulate
+// branch, so the two can't disagree about whether a group is "simulated".
+function isGroupFullySimulated(groupFixtures, predictions) {
+  return groupFixtures.length > 0 && groupFixtures.every((fixture) => {
+    const prediction = predictions[fixture.fixture_id]
+    return Boolean(prediction) && prediction !== 'loading' && prediction !== 'error'
+  })
+}
+
 function StandingsTable({ standings, allFixtures }) {
   const navigate = useNavigate()
   return (
@@ -107,7 +118,6 @@ export default function GroupStage() {
   const [allFixtures, setAllFixtures] = useState([])
   const [espnStandings, setEspnStandings] = useState({})
   const [predictions, setPredictions] = useState({})
-  const [simStandings, setSimStandings] = useState({})
   const [standingsLoading, setStandingsLoading] = useState({})
 
   const [isLoading, setIsLoading] = useState(true)
@@ -181,19 +191,15 @@ export default function GroupStage() {
     })
   }
 
-  // Toggles a group's "Simulate remaining fixtures" run. On toggle-off, both
-  // the cached sim standings AND that group's per-fixture predictions are
-  // cleared (not just hidden) so the next run re-predicts from scratch rather
-  // than reusing stale numbers.
+  // Toggles a group's "Simulate remaining fixtures" run. On toggle-off, the
+  // group's per-fixture predictions are cleared (not just hidden) so the next
+  // run re-predicts from scratch rather than reusing stale numbers. Standings
+  // aren't tracked here at all — the table derives from `predictions` at
+  // render time (see isGroupFullySimulated / activeGroupValidPredictions).
   async function handleSimulateGroup(group, groupFixtures) {
-    const isSimulated = Boolean(simStandings[group.id])
+    const isSimulated = isGroupFullySimulated(groupFixtures, predictions)
 
     if (isSimulated) {
-      setSimStandings((current) => {
-        const next = { ...current }
-        delete next[group.id]
-        return next
-      })
       const groupFixtureIds = new Set(groupFixtures.map(f => f.fixture_id))
       setPredictions((current) => {
         const next = { ...current }
@@ -211,12 +217,7 @@ export default function GroupStage() {
       const newPredictions = Object.fromEntries(
         groupFixtures.map((fixture, i) => [fixture.fixture_id, results[i]])
       )
-      const mergedPredictions = { ...predictions, ...newPredictions }
-      setPredictions(mergedPredictions)
-      setSimStandings((current) => ({
-        ...current,
-        [group.id]: computeSimStandings(group, groupFixtures, mergedPredictions, espnStandings[`Group ${group.id}`]),
-      }))
+      setPredictions((current) => ({ ...current, ...newPredictions }))
     } catch {
       // silently fail
     } finally {
@@ -241,6 +242,14 @@ export default function GroupStage() {
   const activeGroupEspnStandings = activeGroup
     ? (espnStandings[`Group ${activeGroup.id}`] ?? []).map(e => ({ ...e, code: espnIdToCode[e.espn_id] }))
     : []
+  const activeGroupFullySimulated = activeGroup ? isGroupFullySimulated(activeGroupFixtures, predictions) : false
+  // Excludes the 'loading'/'error' sentinel strings handleSimulateFixture can
+  // leave in `predictions` — computeSimStandings only guards against falsy
+  // values, so passing a sentinel straight through would corrupt its math
+  // (e.g. 'loading'.home / 100 => NaN).
+  const activeGroupValidPredictions = Object.fromEntries(
+    Object.entries(predictions).filter(([, p]) => p && p !== 'loading' && p !== 'error')
+  )
 
   return (
     <section className="page">
@@ -274,7 +283,7 @@ export default function GroupStage() {
               {activeCurrentTab === 'simulate' && (
                 <>
                   <SimStandingsTable
-                    standings={simStandings[activeGroup.id] ?? activeGroup.teams.map(team => ({ ...team, points: 0, probSum: 0 }))}
+                    standings={computeSimStandings(activeGroup, activeGroupFixtures, activeGroupValidPredictions, activeGroupEspnStandings)}
                     allFixtures={allFixtures}
                   />
                   <button
@@ -286,7 +295,7 @@ export default function GroupStage() {
                   >
                     {activeIsStandingsLoading
                       ? 'Simulating…'
-                      : simStandings[activeGroup.id]
+                      : activeGroupFullySimulated
                         ? 'Reset simulation'
                         : 'Simulate remaining fixtures'}
                   </button>
