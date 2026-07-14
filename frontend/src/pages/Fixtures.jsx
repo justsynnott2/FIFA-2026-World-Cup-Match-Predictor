@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getLiveFixtures, getAllFixtures, predictMatch } from '../utils/api'
+import { getAllFixtures, predictMatch } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
@@ -340,10 +340,11 @@ export default function Fixtures() {
 
         async function tick() {
             try {
-                const [live, all] = await Promise.all([
-                    getLiveFixtures(),
-                    getAllFixtures(),
-                ])
+                const all = await getAllFixtures()
+                // Live fixtures are derived from the full list rather than fetched
+                // from a separate endpoint, so matchStatus.js's allowlist stays the
+                // single source of truth for what counts as "live".
+                const live = all.filter(f => isMatchLive(f.status))
                 const allUpcoming = all
                     .filter(f => f.status === 'STATUS_SCHEDULED')
                     .sort((a, b) => new Date(a.date) - new Date(b.date))

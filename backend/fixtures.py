@@ -18,6 +18,19 @@ KNOCKOUT_DATE_RANGE = "20260628-20260719"
 STATUS_UPCOMING = {'STATUS_SCHEDULED'}
 STATUS_FINAL = {'STATUS_FULL_TIME', 'STATUS_FINAL_AET','STATUS_FINAL_PEN'}
 
+# Allowlist, not an exclusion list — mirrors LIVE_STATUSES in
+# frontend/src/utils/matchStatus.js. ESPN's status enum isn't a documented,
+# closed set, so a status that isn't STATUS_FINAL/STATUS_UPCOMING isn't
+# necessarily live (e.g. STATUS_POSTPONED, STATUS_CANCELED); listing the known
+# live-phase values explicitly avoids misreporting those as in-progress.
+STATUS_LIVE = {
+    'STATUS_FIRST_HALF',
+    'STATUS_HALFTIME',
+    'STATUS_SECOND_HALF',
+    'STATUS_EXTRA_TIME',
+    'STATUS_PENALTY',
+    'STATUS_DELAYED',
+}
 
 def _extract_group(alt_game_note):
     """Pulls the single-letter group (e.g. 'A') out of ESPN's free-text altGameNote field, or '' if absent."""
@@ -111,8 +124,8 @@ def get_all_fixtures():
     return sorted(get_group_stage_fixtures() + get_knockout_fixtures(), key=lambda f: f['date'])
 
 def get_live_fixtures():
-    """Returns all fixtures currently in progress (status not in the upcoming or final sets)."""
-    return [f for f in get_all_fixtures() if f['status'] not in STATUS_FINAL | STATUS_UPCOMING]
+    """Returns all fixtures currently in progress (status in the STATUS_LIVE allowlist)."""
+    return [f for f in get_all_fixtures() if f['status'] in STATUS_LIVE]
 
 def get_upcoming_fixtures():
     """Returns the next 5 scheduled fixtures, in whatever order get_all_fixtures produced (date-sorted)."""

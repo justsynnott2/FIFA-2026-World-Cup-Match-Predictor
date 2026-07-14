@@ -2,9 +2,8 @@ import { toModelName } from '../data/tournament'
 
 // Thin fetch wrapper around the FastAPI backend. Every function here hits one
 // endpoint and returns already-parsed JSON (or throws on a non-OK response).
-// Exports: predictMatch, getAllFixtures, getLiveFixtures, getUpcomingFixtures,
-// getRecentResults, getKnockoutFixtures, predictKnockout, getTeamSquad,
-// getTeamNews, getStandings.
+// Exports: predictMatch, getAllFixtures, getKnockoutFixtures, predictKnockout,
+// getTeamSquad, getTeamNews, getStandings.
 
 // Base URL for the FastAPI backend
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
@@ -43,27 +42,6 @@ export async function predictMatch(homeName, awayName) {
 export async function getAllFixtures() {
   const response = await fetch(`${API_BASE}/schedule/all`)
   if (!response.ok) throw new Error('Failed to fetch all fixtures')
-  return response.json()
-}
-
-/** Fetches fixtures currently in progress from `/schedule/live` (empty array if none). */
-export async function getLiveFixtures() {
-  const response = await fetch(`${API_BASE}/schedule/live`)
-  if (!response.ok) throw new Error('Failed to fetch live fixtures')
-  return response.json()
-}
-
-/** Fetches the next 5 scheduled fixtures from `/schedule/upcoming`. */
-export async function getUpcomingFixtures() {
-  const response = await fetch(`${API_BASE}/schedule/upcoming`)
-  if (!response.ok) throw new Error('Failed to fetch upcoming fixtures')
-  return response.json()
-}
-
-/** Fetches the last 5 completed fixtures with final scores from `/schedule/results`. */
-export async function getRecentResults() {
-  const response = await fetch(`${API_BASE}/schedule/results`)
-  if (!response.ok) throw new Error('Failed to fetch recent results')
   return response.json()
 }
 
