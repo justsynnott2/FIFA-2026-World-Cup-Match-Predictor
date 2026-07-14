@@ -104,7 +104,6 @@ function CenterCol({ finalProps, thirdProps }) {
 export default function TournamentBracket() {
   const [knockoutFixtures, setKnockoutFixtures] = useState(null)
   const [simBracket, setSimBracket]             = useState(null)
-  const [simMode, setSimMode]                   = useState(null)
   const [loading, setLoading]                   = useState(false)
   const [error, setError]                       = useState(null)
 
@@ -137,30 +136,28 @@ export default function TournamentBracket() {
   /**
    * Resolves what team actually occupies a bracket slot. A slot is one of:
    * a real team already assigned by ESPN (has a logo); the winner/loser of an
-   * earlier fixture that's already been played (only in 'remaining' mode); or
-   * still an unresolved placeholder (e.g. "Round of 16 3 Winner") whose feeder
-   * match hasn't been simulated yet, in which case this returns null and the
-   * slot renders as TBD until runSimulation reaches that feeder fixture.
+   * earlier fixture that's already been played; or still an unresolved
+   * placeholder (e.g. "Round of 16 3 Winner") whose feeder match hasn't been
+   * simulated yet, in which case this returns null and the slot renders as
+   * TBD until runSimulation reaches that feeder fixture.
    */
-  function resolveTeam(teamName, teamCode, teamLogo, mode, simResults) {
+  function resolveTeam(teamName, teamCode, teamLogo, simResults) {
     if (isRealTeam(null, teamLogo)) {
       return { name: teamName, code: teamCode, logo: teamLogo }
     }
     const ref = parsePlaceholderRef(teamName)
     if (!ref) return null
     const { fixtureId, loser } = ref
-    if (mode === 'remaining') {
-      const srcFixture = fixtureLookup[fixtureId]
-      if (srcFixture && isMatchCompleted(srcFixture.status)) {
-        const homeWon = parseFloat(srcFixture.home_score) > parseFloat(srcFixture.away_score)
-        const winner = homeWon
-          ? { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
-          : { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
-        const loserTeam = homeWon
-          ? { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
-          : { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
-        return loser ? loserTeam : winner
-      }
+    const srcFixture = fixtureLookup[fixtureId]
+    if (srcFixture && isMatchCompleted(srcFixture.status)) {
+      const homeWon = parseFloat(srcFixture.home_score) > parseFloat(srcFixture.away_score)
+      const winner = homeWon
+        ? { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+        : { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+      const loserTeam = homeWon
+        ? { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+        : { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+      return loser ? loserTeam : winner
     }
     const srcResult = simResults[fixtureId]
     if (!srcResult) return null
@@ -169,15 +166,13 @@ export default function TournamentBracket() {
 
   /**
    * Runs a full bracket simulation and returns simResults keyed by fixture ID.
-   * Two modes: 'remaining' keeps every already-played result as-is and only
-   * predicts fixtures that haven't happened yet; 'scratch' predicts every
-   * single match, including ones ESPN already has a real result for, so the
-   * whole bracket plays out hypothetically. Rounds must be walked in strict
-   * order (R32 → R16 → QF → SF → Final) because each round's matchups depend
-   * on the previous round's winners — a QF slot can't be resolved until its
-   * feeding R16 fixture has a winner in simResults.
+   * Keeps every already-played result as-is and only predicts fixtures that
+   * haven't happened yet. Rounds must be walked in strict order
+   * (R32 → R16 → QF → SF → Final) because each round's matchups depend on the
+   * previous round's winners — a QF slot can't be resolved until its feeding
+   * R16 fixture has a winner in simResults.
    */
-  async function runSimulation(mode) {
+  async function runSimulation() {
     if (!realBracket) return null
     const simResults = {}
 
@@ -192,16 +187,16 @@ export default function TournamentBracket() {
         if (!fixture) continue
 
         let teamA, teamB
-        if (mode === 'remaining' && isMatchCompleted(fixture.status)) {
+        if (isMatchCompleted(fixture.status)) {
           teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo }
           teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo }
         } else {
-          teamA = resolveTeam(fixture.home_team, fixture.home_code, fixture.home_logo, mode, simResults)
-          teamB = resolveTeam(fixture.away_team, fixture.away_code, fixture.away_logo, mode, simResults)
+          teamA = resolveTeam(fixture.home_team, fixture.home_code, fixture.home_logo, simResults)
+          teamB = resolveTeam(fixture.away_team, fixture.away_code, fixture.away_logo, simResults)
         }
 
         let winner, loserTeam, source, probs = null
-        if (mode === 'remaining' && isMatchCompleted(fixture.status)) {
+        if (isMatchCompleted(fixture.status)) {
           const homeWon = parseFloat(fixture.home_score) > parseFloat(fixture.away_score)
           winner = homeWon ? teamA : teamB
           loserTeam = homeWon ? teamB : teamA
@@ -225,15 +220,15 @@ export default function TournamentBracket() {
     const finalFixture = realBracket['final']?.[0] ?? null
     if (finalFixture) {
       let teamA, teamB
-      if (mode === 'remaining' && isMatchCompleted(finalFixture.status)) {
+      if (isMatchCompleted(finalFixture.status)) {
         teamA = { name: finalFixture.home_team, code: finalFixture.home_code, logo: finalFixture.home_logo }
         teamB = { name: finalFixture.away_team, code: finalFixture.away_code, logo: finalFixture.away_logo }
       } else {
-        teamA = resolveTeam(finalFixture.home_team, finalFixture.home_code, finalFixture.home_logo, mode, simResults)
-        teamB = resolveTeam(finalFixture.away_team, finalFixture.away_code, finalFixture.away_logo, mode, simResults)
+        teamA = resolveTeam(finalFixture.home_team, finalFixture.home_code, finalFixture.home_logo, simResults)
+        teamB = resolveTeam(finalFixture.away_team, finalFixture.away_code, finalFixture.away_logo, simResults)
       }
       let winner, loserTeam, source, probs = null
-      if (mode === 'remaining' && isMatchCompleted(finalFixture.status)) {
+      if (isMatchCompleted(finalFixture.status)) {
         const homeWon = parseFloat(finalFixture.home_score) > parseFloat(finalFixture.away_score)
         winner = homeWon ? teamA : teamB
         loserTeam = homeWon ? teamB : teamA
@@ -261,7 +256,7 @@ export default function TournamentBracket() {
     const thirdFixture = realBracket['3rd-place-match']?.[0] ?? null
 
     let thirdMatch
-    if (thirdFixture && mode === 'remaining' && isMatchCompleted(thirdFixture.status)) {
+    if (thirdFixture && isMatchCompleted(thirdFixture.status)) {
       const homeWon = parseFloat(thirdFixture.home_score) > parseFloat(thirdFixture.away_score)
       const t3A = { name: thirdFixture.home_team, code: thirdFixture.home_code, logo: thirdFixture.home_logo }
       const t3B = { name: thirdFixture.away_team, code: thirdFixture.away_code, logo: thirdFixture.away_logo }
@@ -282,13 +277,12 @@ export default function TournamentBracket() {
     return simResults
   }
 
-  async function handleSimulate(mode) {
+  async function handleSimulate() {
     setLoading(true)
     setError(null)
     try {
-      const result = await runSimulation(mode)
+      const result = await runSimulation()
       setSimBracket(result)
-      setSimMode(mode)
     } catch {
       setError('Simulation failed. Make sure the backend is running.')
     } finally {
@@ -298,7 +292,6 @@ export default function TournamentBracket() {
 
   function handleReset() {
     setSimBracket(null)
-    setSimMode(null)
   }
 
   function getCol(side, roundKey) {
@@ -352,23 +345,17 @@ export default function TournamentBracket() {
         <h1>104-match path from groups to champion.</h1>
       </div>
       <div className="bracket-toolbar">
-        {simMode ? (
+        {simBracket ? (
           <button type="button" onClick={handleReset}>Reset</button>
         ) : (
-          <>
-            <button type="button" disabled={loading || !realBracket} onClick={() => handleSimulate('remaining')}>
-              {loading ? 'Simulating…' : 'Simulate remaining'}
-            </button>
-            <button type="button" disabled={loading || !realBracket} onClick={() => handleSimulate('scratch')}>
-              {loading ? 'Simulating…' : 'Simulate from scratch'}
-            </button>
-          </>
+          <button type="button" disabled={loading || !realBracket} onClick={handleSimulate}>
+            {loading ? 'Simulating…' : 'Simulate remaining'}
+          </button>
         )}
         <span>
           {loading
             ? 'Running predictions…'
-            : simMode === 'remaining' ? 'Showing real results + predictions'
-            : simMode === 'scratch'   ? 'Full simulation from scratch'
+            : simBracket              ? 'Showing real results + predictions'
             : knockoutFixtures        ? 'Live bracket — run a simulation'
             : 'Loading fixtures…'}
         </span>
