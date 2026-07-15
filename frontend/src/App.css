@@ -769,10 +769,36 @@ select {
   font-size: 0.9rem;
 }
 
+.champion-card {
+  justify-content: center;
+  gap: 1rem;
+}
+
+.champion-card__logo {
+  width: 4.75rem;
+  height: 4.75rem;
+  object-fit: contain;
+}
+
+.champion-card__name {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--green);
+}
+
+.champion-card .countdown-card__detail {
+  font-size: 1.1rem;
+}
+
 .fixtures-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
+}
+
+.fixtures-grid--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .fixtures-column h2 {

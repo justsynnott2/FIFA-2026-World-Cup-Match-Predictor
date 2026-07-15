@@ -1,4 +1,5 @@
 import { toModelName } from '../data/tournament'
+import { isMatchLive } from './matchStatus'
 
 // Thin fetch wrapper around the FastAPI backend. Every function here hits one
 // endpoint and returns already-parsed JSON (or throws on a non-OK response).
@@ -7,6 +8,46 @@ import { toModelName } from '../data/tournament'
 
 // Base URL for the FastAPI backend
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+
+// Dev-only test aid: append ?mockOver (or ?mockOver=pens) to the URL while
+// running the Vite dev server to preview the tournament-complete UI without
+// waiting for the real final to be played. No effect in production builds,
+// and no effect without the query param. Folds "no live fixtures" into this
+// same transform (rather than a separate getLiveFixtures call) since every
+// page derives live fixtures by filtering getAllFixtures' output.
+function mockTournamentOver(fixtures) {
+    if (!import.meta.env.DEV) return fixtures
+    const params = new URLSearchParams(window.location.search)
+    if (!params.has('mockOver')) return fixtures
+    const pens = params.get('mockOver') === 'pens'
+
+    return fixtures.map(fixture => {
+        const isFinal = fixture.round === 'final'
+        const needsCompleting = isFinal || fixture.status === 'STATUS_SCHEDULED' || isMatchLive(fixture.status)
+        if (!needsCompleting) return fixture
+
+        if (isFinal && pens) {
+            return {
+                ...fixture,
+                status: 'STATUS_FINAL_PEN',
+                home_score: 1,
+                away_score: 1,
+                home_winner: true,
+                away_winner: false,
+                home_shootout_score: 4,
+                away_shootout_score: 3,
+            }
+        }
+        return {
+            ...fixture,
+            status: 'STATUS_FULL_TIME',
+            home_score: 2,
+            away_score: 1,
+            home_winner: true,
+            away_winner: false,
+        }
+    })
+}
 
 /**
  * Predicts win/draw/loss probabilities for a given matchup.
@@ -42,7 +83,8 @@ export async function predictMatch(homeName, awayName) {
 export async function getAllFixtures() {
   const response = await fetch(`${API_BASE}/schedule/all`)
   if (!response.ok) throw new Error('Failed to fetch all fixtures')
-  return response.json()
+  const data = await response.json()
+  return mockTournamentOver(data)
 }
 
 /** Fetches all 32 knockout stage fixtures from `/schedule/knockout`. */

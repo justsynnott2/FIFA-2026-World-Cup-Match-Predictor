@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures, getStandings } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
-import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, STATUS_DELAYED, isTournamentOver } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
 // Group Stage page: a 3-column grid of all 12 groups, each expandable into a
@@ -155,7 +155,9 @@ export default function GroupStage() {
         const fixtures = await getAllFixtures()
         setAllFixtures(fixtures)
         const hasLiveMatch = fixtures.some(f => isMatchLive(f.status))
-        timerId = setTimeout(tick, hasLiveMatch ? 30_000 : 300_000)
+        if (!isTournamentOver(fixtures)) {
+            timerId = setTimeout(tick, hasLiveMatch ? 30_000 : 300_000)
+        }
       } catch {
         // ignore transient polling errors; next tick will retry
       }

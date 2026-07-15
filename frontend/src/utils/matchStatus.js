@@ -35,3 +35,16 @@ export function isMatchLive(status) {
 export function isMatchCompleted(status) {
     return COMPLETE_STATUSES.includes(status)
 }
+
+// Returns the tournament final's fixture, or null if it isn't in the list
+export function getFinalFixture(allFixtures) {
+    return allFixtures.find(f => f.round === 'final') ?? null
+}
+
+// True once the final has been played to completion — the authoritative
+// signal that the tournament is over, rather than inferring it from the
+// absence of scheduled fixtures.
+export function isTournamentOver(allFixtures) {
+    const final = getFinalFixture(allFixtures)
+    return final != null && isMatchCompleted(final.status)
+}

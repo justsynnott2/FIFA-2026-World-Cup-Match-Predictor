@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getAllFixtures } from '../utils/api'
-import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, getFinalFixture, isTournamentOver } from '../utils/matchStatus'
 import FixtureCard from '../components/FixtureCard'
 import Countdown from '../components/Countdown'
 import PaginationControls from '../components/PaginationControls'
@@ -26,6 +27,47 @@ function computeDelay(live, upcoming) {
     if (msUntilKickoff <= 0) return 30_000                    // past kickoff, waiting for ESPN to go live
     if (msUntilKickoff <= 30 * 60 * 1000) return 60_000      // within 30 min of kickoff
     return 300_000
+}
+
+// Replaces the countdown card once the final has been completed: the
+// winning team's logo/name plus how they beat the runner-up. Reuses the
+// countdown-card shell/classes — no timer, no prediction fetch.
+function ChampionCard({ finalFixture }) {
+    const navigate = useNavigate()
+    const flagsPresent = finalFixture.home_winner != null || finalFixture.away_winner != null
+    const homeWon = flagsPresent
+        ? Boolean(finalFixture.home_winner)
+        : finalFixture.home_score > finalFixture.away_score
+
+    const winner = homeWon
+        ? { name: finalFixture.home_team, logo: finalFixture.home_logo, espnId: finalFixture.home_espn_id, score: finalFixture.home_score }
+        : { name: finalFixture.away_team, logo: finalFixture.away_logo, espnId: finalFixture.away_espn_id, score: finalFixture.away_score }
+    const runnerUp = homeWon
+        ? { name: finalFixture.away_team, score: finalFixture.away_score }
+        : { name: finalFixture.home_team, score: finalFixture.home_score }
+
+    return (
+        <div className="countdown-card champion-card">
+            <span className="eyebrow">Tournament Complete</span>
+            <div className="countdown-card__match">
+                <img src={winner.logo} alt={winner.name} className="champion-card__logo" />
+                <span
+                    className="team-name-link champion-card__name"
+                    onClick={() => winner.espnId && navigate(`/team/${winner.espnId}`)}
+                >
+                    {winner.name}
+                </span>
+            </div>
+            <div className="countdown-card__detail">
+                Beat {runnerUp.name} {winner.score}–{runnerUp.score}
+                {finalFixture.status === 'STATUS_FINAL_PEN' && (
+                    <span className="fixture-card__pens">
+                        ({finalFixture.home_shootout_score}–{finalFixture.away_shootout_score} pens)
+                    </span>
+                )}
+            </div>
+        </div>
+    )
 }
 
 export default function Fixtures() {
@@ -59,7 +101,9 @@ export default function Fixtures() {
                 setLiveFixtures(live)
                 setAllFixtures(all)
                 setIsLoading(false)
-                timerId = setTimeout(tick, computeDelay(live, allUpcoming))
+                if (!isTournamentOver(all)) {
+                    timerId = setTimeout(tick, computeDelay(live, allUpcoming))
+                }
             } catch {
                 setError('Failed to load fixtures. Make sure the backend is running.')
                 setIsLoading(false)
@@ -87,6 +131,7 @@ export default function Fixtures() {
 
     const upcomingSlice = allUpcoming.slice(upcomingPage * PAGE_SIZE, (upcomingPage + 1) * PAGE_SIZE)
     const resultsSlice  = allResults.slice(resultsPage  * PAGE_SIZE, (resultsPage  + 1) * PAGE_SIZE)
+    const isSingleColumn = allUpcoming.length === 0
 
     return (
         <section className="page fixtures-page">
@@ -101,35 +146,39 @@ export default function Fixtures() {
                 ? liveFixtures.map((fixture) => (
                     <Countdown key={fixture.fixture_id} fixture={fixture} isKnownLive={true} />
                 ))
-                : nextKickoffFixtures.map(fixture => (
-                    <Countdown
-                        key={fixture.fixture_id}
-                        fixture={fixture}
-                        isKnownLive={false}
-                        label={nextKickoffFixtures.length > 1 ? 'Next Fixtures' : 'Next Fixture'}
-                    />
-                ))
+                : isTournamentOver(allFixtures)
+                    ? <ChampionCard finalFixture={getFinalFixture(allFixtures)} />
+                    : nextKickoffFixtures.map(fixture => (
+                        <Countdown
+                            key={fixture.fixture_id}
+                            fixture={fixture}
+                            isKnownLive={false}
+                            label={nextKickoffFixtures.length > 1 ? 'Next Fixtures' : 'Next Fixture'}
+                        />
+                    ))
             }
 
-            <div className="fixtures-grid">
+            <div className={`fixtures-grid${isSingleColumn ? ' fixtures-grid--single' : ''}`}>
 
                 {/* Upcoming fixtures */}
-                <div className="fixtures-column">
-                    <h2>Upcoming</h2>
-                    <div className="fixture-list">
-                        {upcomingSlice.map((fixture) => (
-                            <FixtureCard key={fixture.fixture_id} fixture={fixture} />
-                        ))}
+                {!isSingleColumn && (
+                    <div className="fixtures-column">
+                        <h2>Upcoming</h2>
+                        <div className="fixture-list">
+                            {upcomingSlice.map((fixture) => (
+                                <FixtureCard key={fixture.fixture_id} fixture={fixture} />
+                            ))}
+                        </div>
+                        <PaginationControls
+                            page={upcomingPage}
+                            totalItems={allUpcoming.length}
+                            pageSize={PAGE_SIZE}
+                            setPage={setUpcomingPage}
+                            prevLabel="← Prev"
+                            nextLabel="Next →"
+                        />
                     </div>
-                    <PaginationControls
-                        page={upcomingPage}
-                        totalItems={allUpcoming.length}
-                        pageSize={PAGE_SIZE}
-                        setPage={setUpcomingPage}
-                        prevLabel="← Prev"
-                        nextLabel="Next →"
-                    />
-                </div>
+                )}
 
                 {/* Recent results */}
                 <div className="fixtures-column">
