@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures, getStandings } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
-import { isMatchLive, isMatchCompleted, STATUS_DELAYED, isTournamentOver } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, STATUS_DELAYED, isGroupStageOver } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
 
 // Group Stage page: a 3-column grid of all 12 groups, each expandable into a
@@ -147,6 +147,8 @@ export default function GroupStage() {
   // Separate recurring poll (same dynamic setTimeout pattern as Fixtures.jsx)
   // that only refreshes fixtures — standings aren't re-polled here since
   // ESPN's own standings table updates on a much slower cadence than scores.
+  // This page only renders group-stage data, so polling stops once every
+  // group fixture is completed rather than waiting a month for the final.
   useEffect(() => {
     let timerId
 
@@ -155,7 +157,7 @@ export default function GroupStage() {
         const fixtures = await getAllFixtures()
         setAllFixtures(fixtures)
         const hasLiveMatch = fixtures.some(f => isMatchLive(f.status))
-        if (!isTournamentOver(fixtures)) {
+        if (!isGroupStageOver(fixtures)) {
             timerId = setTimeout(tick, hasLiveMatch ? 30_000 : 300_000)
         }
       } catch {

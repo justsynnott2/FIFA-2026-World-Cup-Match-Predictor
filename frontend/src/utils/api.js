@@ -14,7 +14,10 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 // waiting for the real final to be played. No effect in production builds,
 // and no effect without the query param. Folds "no live fixtures" into this
 // same transform (rather than a separate getLiveFixtures call) since every
-// page derives live fixtures by filtering getAllFixtures' output.
+// page derives live fixtures by filtering getAllFixtures' output. Applied to
+// both getAllFixtures and getKnockoutFixtures. Caveat: if used before the
+// knockout bracket is seeded, TBD fixtures get force-completed too, so the
+// previewed bracket may look odd — acceptable for a dev-only aid.
 function mockTournamentOver(fixtures) {
     if (!import.meta.env.DEV) return fixtures
     const params = new URLSearchParams(window.location.search)
@@ -111,7 +114,8 @@ export async function getAllFixtures() {
 export async function getKnockoutFixtures() {
   const response = await fetch(`${API_BASE}/schedule/knockout`)
   if (!response.ok) throw new Error('Failed to fetch knockout fixtures')
-  return response.json()
+  const data = await response.json()
+  return mockTournamentOver(data)
 }
 
 /**

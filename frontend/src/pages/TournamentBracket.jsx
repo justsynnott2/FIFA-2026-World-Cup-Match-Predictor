@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getKnockoutFixtures, predictKnockout } from '../utils/api'
 import { buildBracketState, isRealTeam, BRACKET_STRUCTURE, buildFixtureLookup, resolveSlotTeam, getStructuralFeeders } from '../utils/bracket'
-import { isMatchLive, isMatchCompleted } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, isTournamentOver } from '../utils/matchStatus'
 
 // Tournament Bracket page: renders the full 32-match knockout bracket (Round
 // of 32 through Final + 3rd place) using the fixed fixture-ID topology from
@@ -36,6 +36,16 @@ function probFor(match, team) {
 
 function matchModifierClass(clickable, pending) {
   return `${clickable ? ' bracket-match--clickable' : ''}${pending ? ' bracket-match--pending' : ''}`
+}
+
+// Shootout-decided matches have level full-time scores, so comparing scores
+// alone can't tell winner from loser — ESPN's explicit winner flags are
+// authoritative when present; only fall back to comparing scores if neither
+// flag is set.
+function didHomeWin(fixture) {
+  if (fixture.home_winner === true) return true
+  if (fixture.away_winner === true) return false
+  return parseFloat(fixture.home_score) > parseFloat(fixture.away_score)
 }
 
 function BracketMatch({ teamAName, teamBName, winnerCode, teamACode, teamBCode, clickable, pending, onClick }) {
@@ -137,7 +147,11 @@ export default function TournamentBracket() {
 
         setKnockoutFixtures(fixtures)
         const hasLive = fixtures.some(f => isMatchLive(f.status))
-        timeoutId = setTimeout(fetchAndSchedule, hasLive ? 30000 : 300000)
+        // Knockout list includes the final, so isTournamentOver is decidable
+        // from it directly — stop rescheduling once it's been played out.
+        if (!isTournamentOver(fixtures)) {
+          timeoutId = setTimeout(fetchAndSchedule, hasLive ? 30000 : 300000)
+        }
       } catch {
         if (!cancelled) setError('Failed to load fixtures.')
       }
@@ -168,7 +182,7 @@ export default function TournamentBracket() {
     if (locked) {
       const teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo }
       const teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo }
-      const homeWon = parseFloat(fixture.home_score) > parseFloat(fixture.away_score)
+      const homeWon = didHomeWin(fixture)
       return { teamA, teamB, winner: homeWon ? teamA : teamB, locked: true }
     }
 
@@ -251,7 +265,7 @@ export default function TournamentBracket() {
 
         let winner, loserTeam, source, probs = null
         if (useReal) {
-          const homeWon = parseFloat(fixture.home_score) > parseFloat(fixture.away_score)
+          const homeWon = didHomeWin(fixture)
           winner = homeWon ? teamA : teamB
           loserTeam = homeWon ? teamB : teamA
           source = 'real'
@@ -285,7 +299,7 @@ export default function TournamentBracket() {
       }
       let winner, loserTeam, source, probs = null
       if (useReal) {
-        const homeWon = parseFloat(finalFixture.home_score) > parseFloat(finalFixture.away_score)
+        const homeWon = didHomeWin(finalFixture)
         winner = homeWon ? teamA : teamB
         loserTeam = homeWon ? teamB : teamA
         source = 'real'
@@ -314,7 +328,7 @@ export default function TournamentBracket() {
     let thirdMatch
     const thirdUseReal = thirdFixture && mode === 'live' && isMatchCompleted(thirdFixture.status)
     if (thirdUseReal) {
-      const homeWon = parseFloat(thirdFixture.home_score) > parseFloat(thirdFixture.away_score)
+      const homeWon = didHomeWin(thirdFixture)
       const t3A = { name: thirdFixture.home_team, code: thirdFixture.home_code, logo: thirdFixture.home_logo }
       const t3B = { name: thirdFixture.away_team, code: thirdFixture.away_code, logo: thirdFixture.away_logo }
       thirdMatch = { teamA: t3A, teamB: t3B, winner: homeWon ? t3A : t3B, loser: homeWon ? t3B : t3A, source: 'real', probs: null }
@@ -451,6 +465,11 @@ export default function TournamentBracket() {
   const thirdOutcome = thirdId ? resolveOutcome(thirdId) : null
   const isFullySimulated = Boolean(finalOutcome?.winner) && Boolean(thirdOutcome?.winner)
 
+  // Drives the Live tab's toolbar: once the real final has been played out,
+  // the simulate/reset controls no longer make sense and are replaced with a
+  // concluded message.
+  const tournamentOver = knockoutFixtures ? isTournamentOver(knockoutFixtures) : false
+
   const activeSimCount = Object.keys(activeSim).length
 
   const statusText = activeLoading
@@ -481,14 +500,19 @@ export default function TournamentBracket() {
 
       <div className="bracket-toolbar">
         {activeTab === 'live' ? (
-          <>
-            <button type="button" disabled={liveLoading || !realBracket || isFullySimulated} onClick={handleSimulateLive}>
-              {liveLoading ? 'Simulating…' : 'Simulate remaining'}
-            </button>
-            <button type="button" className="secondary-button" disabled={Object.keys(liveSim).length === 0} onClick={() => setLiveSim({})}>
-              Reset
-            </button>
-          </>
+          tournamentOver ? (
+            <span>Tournament concluded — final results shown</span>
+          ) : (
+            <>
+              <button type="button" disabled={liveLoading || !realBracket || isFullySimulated} onClick={handleSimulateLive}>
+                {liveLoading ? 'Simulating…' : 'Simulate remaining'}
+              </button>
+              <button type="button" className="secondary-button" disabled={Object.keys(liveSim).length === 0} onClick={() => setLiveSim({})}>
+                Reset
+              </button>
+              <span>{statusText}</span>
+            </>
+          )
         ) : (
           <>
             <button type="button" disabled={simLoading || !realBracket || isFullySimulated} onClick={handleSimulateScratch}>
@@ -497,9 +521,9 @@ export default function TournamentBracket() {
             <button type="button" className="secondary-button" disabled={Object.keys(simSim).length === 0} onClick={() => setSimSim({})}>
               Reset
             </button>
+            <span>{statusText}</span>
           </>
         )}
-        <span>{statusText}</span>
       </div>
       {error && <p className="form-note">{error}</p>}
 
@@ -519,18 +543,31 @@ export default function TournamentBracket() {
       </div>
 
       <div className="champion-panel">
-        <div>
-          <span className="eyebrow">Projected Champion</span>
-          <h2>{champion ? champion.name : 'Run a simulation'}</h2>
-        </div>
-        <div className="odds-list">
-          {oddsTeams.map(({ team, prob, label }) => (
-            <div className="odds-row" key={team.code}>
-              <span>{team.name} <em>({label})</em></span>
-              <strong>{prob != null ? `${prob}%` : '—'}</strong>
+        {tournamentOver && activeTab === 'live' ? (
+          // Tournament's over — show the real champion from finalOutcome
+          // (which resolves to the real winner on the Live tab) instead of
+          // sim state, and skip the odds list, which has no meaning for a
+          // decided bracket.
+          <div>
+            <span className="eyebrow">World Cup Champion</span>
+            <h2>{finalOutcome?.winner?.name}</h2>
+          </div>
+        ) : (
+          <>
+            <div>
+              <span className="eyebrow">Projected Champion</span>
+              <h2>{champion ? champion.name : 'Run a simulation'}</h2>
             </div>
-          ))}
-        </div>
+            <div className="odds-list">
+              {oddsTeams.map(({ team, prob, label }) => (
+                <div className="odds-row" key={team.code}>
+                  <span>{team.name} <em>({label})</em></span>
+                  <strong>{prob != null ? `${prob}%` : '—'}</strong>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </section>
   )

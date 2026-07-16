@@ -48,3 +48,15 @@ export function isTournamentOver(allFixtures) {
     const final = getFinalFixture(allFixtures)
     return final != null && isMatchCompleted(final.status)
 }
+
+// Group-stage fixtures are identified by a truthy `group` field (see
+// data/tournament.js's `group: group.id`). Expects the full fixture list
+// (e.g. from getAllFixtures), not a pre-filtered one — filters for group
+// fixtures itself. Requires at least one group fixture to exist before
+// declaring the stage over: an empty or knockout-only list has zero group
+// fixtures, and "every fixture in an empty list is complete" is vacuously
+// true, which would wrongly report the group stage as finished.
+export function isGroupStageOver(allFixtures) {
+    const groupFixtures = allFixtures.filter(f => f.group)
+    return groupFixtures.length > 0 && groupFixtures.every(f => isMatchCompleted(f.status))
+}
