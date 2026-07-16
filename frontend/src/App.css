@@ -506,6 +506,19 @@ p {
   padding: 0.35rem 0.25rem;
 }
 
+.bracket-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+
+.bracket-tabs button {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.85rem;
+}
+
 .bracket-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -608,6 +621,19 @@ p {
 
 .bracket-team.loser {
   color: var(--muted);
+}
+
+.bracket-match--clickable {
+  cursor: pointer;
+}
+
+.bracket-match--clickable:hover {
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+
+.bracket-match--pending {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 /* minmax(0, ...) track: see .hero-panel comment above */

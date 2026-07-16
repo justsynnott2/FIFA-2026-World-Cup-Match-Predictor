@@ -2,7 +2,10 @@
 // and resolves the "Round of 16 3 Winner"-style placeholder names ESPN uses for
 // matchups that haven't been determined yet into the real fixture that will fill them.
 // Exports: getRealR32Matches, buildBracketState, isRealTeam, R32_FIXTURE_BY_MATCH_NUM,
-// BRACKET_STRUCTURE, buildFixtureLookup, parsePlaceholderRef.
+// BRACKET_STRUCTURE, buildFixtureLookup, parsePlaceholderRef, getStructuralFeeders,
+// resolveSlotTeam.
+
+import { isMatchCompleted } from './matchStatus'
 
 /** Returns only the Round of 32 fixtures from the full knockout fixture list. */
 export function getRealR32Matches(knockoutFixtures) {
@@ -109,4 +112,105 @@ export function parsePlaceholderRef(teamName) {
   }
 
   return null
+}
+
+// Structural parent→child feeder mapping for Round of 16 through Semifinals,
+// derived purely from BRACKET_STRUCTURE's array order (each side's round
+// arrays are already listed in bracket visual order — a round's match at
+// index n is fed by the previous round's matches at indices 2n and 2n+1 on
+// the same side, hand-verified the same way BRACKET_STRUCTURE itself was).
+// Computed once since BRACKET_STRUCTURE is static.
+const STRUCTURAL_PARENT_MAP = (() => {
+  const map = {}
+  const rounds = ['round-of-32', 'round-of-16', 'quarterfinals', 'semifinals']
+  for (const side of ['left', 'right']) {
+    for (let r = 1; r < rounds.length; r++) {
+      const parentIds = BRACKET_STRUCTURE[side][rounds[r - 1]]
+      const childIds = BRACKET_STRUCTURE[side][rounds[r]]
+      childIds.forEach((childId, n) => {
+        map[childId] = {
+          home: { fixtureId: parentIds[2 * n], loser: false },
+          away: { fixtureId: parentIds[2 * n + 1], loser: false },
+        }
+      })
+    }
+  }
+  return map
+})()
+
+/**
+ * Structural equivalent of parsePlaceholderRef: given a fixture's round and
+ * ID, returns { home: {fixtureId, loser}, away: {fixtureId, loser} } for the
+ * two upstream fixtures that feed it, derived from BRACKET_STRUCTURE's array
+ * order rather than by parsing ESPN's placeholder team-name text. Unlike
+ * parsePlaceholderRef, this keeps working once ESPN backfills a fixture's
+ * home_team/away_team with the real (already-decided) winner — exactly when
+ * a from-scratch simulation most needs it, since it must ignore that real
+ * value and resolve its own simulated winner for the same feeder fixture
+ * instead. Round of 32 has no feeder (returns null). Final and 3rd-place
+ * aren't part of BRACKET_STRUCTURE's per-side round arrays, so they're
+ * special-cased directly: each side's semifinal winner feeds the final
+ * (left → home, right → away, matching the convention runSimulation's
+ * existing 3rd-place derivation already uses); the two semifinal losers
+ * feed the 3rd-place match the same way.
+ */
+export function getStructuralFeeders(round, fixtureId) {
+  if (round === 'round-of-32') return null
+
+  if (round === 'final') {
+    return {
+      home: { fixtureId: BRACKET_STRUCTURE.left.semifinals[0], loser: false },
+      away: { fixtureId: BRACKET_STRUCTURE.right.semifinals[0], loser: false },
+    }
+  }
+  if (round === '3rd-place-match') {
+    return {
+      home: { fixtureId: BRACKET_STRUCTURE.left.semifinals[0], loser: true },
+      away: { fixtureId: BRACKET_STRUCTURE.right.semifinals[0], loser: true },
+    }
+  }
+
+  return STRUCTURAL_PARENT_MAP[fixtureId] ?? null
+}
+
+/**
+ * Resolves what team occupies a bracket slot, at display time or during a
+ * simulation walk. Real teams resolve immediately if `isSeeded` (Round of 32
+ * — never a placeholder) or mode is 'live' (real results always trusted).
+ * Otherwise (mode 'simulate' on a non-R32 slot) a real-looking value is
+ * never trusted directly — it may just be ESPN having backfilled a
+ * placeholder once that round was actually decided in reality, and the
+ * Simulate tab must ignore real results — so resolution falls through to
+ * placeholder parsing. If the raw team name is no longer literal placeholder
+ * text (ESPN already backfilled it with the real result), `structuralRef` —
+ * the caller-supplied output of getStructuralFeeders — is used instead, since
+ * it doesn't depend on that text surviving. Returns null (renders as TBD) if
+ * nothing resolves.
+ */
+export function resolveSlotTeam(teamName, teamCode, teamLogo, simState, fixtureLookup, mode, isSeeded = false, structuralRef = null) {
+  const trustRawTeam = isSeeded || mode === 'live'
+  if (trustRawTeam && isRealTeam(null, teamLogo)) {
+    return { name: teamName, code: teamCode, logo: teamLogo }
+  }
+  const ref = parsePlaceholderRef(teamName) ?? structuralRef
+  if (!ref) return null
+  const { fixtureId, loser } = ref
+
+  if (mode === 'live') {
+    const srcFixture = fixtureLookup[fixtureId]
+    if (srcFixture && isMatchCompleted(srcFixture.status)) {
+      const homeWon = parseFloat(srcFixture.home_score) > parseFloat(srcFixture.away_score)
+      const winner = homeWon
+        ? { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+        : { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+      const loserTeam = homeWon
+        ? { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+        : { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+      return loser ? loserTeam : winner
+    }
+  }
+
+  const srcResult = simState[fixtureId]
+  if (!srcResult) return null
+  return loser ? srcResult.loser : srcResult.winner
 }
