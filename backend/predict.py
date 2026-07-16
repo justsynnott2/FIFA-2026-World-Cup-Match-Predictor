@@ -16,8 +16,8 @@ def _raw_predict(home_team, away_team):
     """
     Builds the model's feature vector for one home/away direction and returns
     raw win/draw/loss probabilities for exactly that direction (not mirrored).
-    Used directly for matches involving a host nation; predict_match calls this
-    twice and averages for all other matchups (see below).
+    Used directly for mixed host-vs-non-host matchups; predict_match calls this
+    twice and averages when both teams are hosts or neither is (see below).
     """
     # Will base results off of current date, so we get the most recent data
     today = pd.Timestamp.today()
@@ -91,12 +91,14 @@ def predict_match(home_team, away_team):
     """
     Public entry point: predicts win/draw/loss probabilities for a matchup.
 
-    For matches between two non-host nations, runs _raw_predict in both
+    When neither team is a host or both are, runs _raw_predict in both
     directions and averages the results (with home/away swapped back to match
     the caller's orientation) to cancel out any residual home-field signal the
-    model learned, since which team is "home" for a neutral-site World Cup
-    fixture is arbitrary. Host-nation matches skip the averaging so the model's
-    real home-advantage signal for USA/Mexico/Canada is preserved.
+    model learned, since the match is effectively played at a neutral venue
+    either way (no host involved, or two hosts facing off). Mixed
+    host-vs-non-host matchups skip the averaging so the model's real
+    home-advantage signal for the host nation (USA/Mexico/Canada) is
+    preserved.
     """
     if home_team == away_team:
         return {"message": "Home team and away team cannot be the same."}
@@ -105,7 +107,8 @@ def predict_match(home_team, away_team):
     home_is_host = home_team in host_countries
     away_is_host = away_team in host_countries
 
-    # For non-host matches, average both directions to remove residual bias
+    # Average both directions when the venue is effectively neutral (no host
+    # involved, or two hosts facing off)
     if home_is_host == away_is_host:
         pred1 = _raw_predict(home_team, away_team)
         pred2 = _raw_predict(away_team, home_team)

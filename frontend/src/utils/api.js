@@ -49,11 +49,30 @@ function mockTournamentOver(fixtures) {
     })
 }
 
+// Largest-remainder rounding: floors each value, then hands the leftover
+// (100 minus the sum of the floors) one-by-one to the values with the
+// largest fractional part, so the result always sums to exactly 100 instead
+// of drifting to 99 or 101 the way independent Math.round calls can.
+function roundToHundred(values) {
+  const floors = values.map(Math.floor)
+  let remainder = 100 - floors.reduce((sum, v) => sum + v, 0)
+  const order = values
+    .map((v, i) => ({ i, frac: v - floors[i] }))
+    .sort((a, b) => b.frac - a.frac)
+  const result = [...floors]
+  for (const { i } of order) {
+    if (remainder <= 0) break
+    result[i] += 1
+    remainder -= 1
+  }
+  return result
+}
+
 /**
  * Predicts win/draw/loss probabilities for a given matchup.
  * @param {string} homeName - ESPN display name of the home team.
  * @param {string} awayName - ESPN display name of the away team.
- * @returns {Promise<{home: number, draw: number, away: number}>} Percentages (0-100, each rounded independently).
+ * @returns {Promise<{home: number, draw: number, away: number}>} Percentages (0-100) that always sum to exactly 100 (largest-remainder rounding).
  */
 export async function predictMatch(homeName, awayName) {
   const response = await fetch(`${API_BASE}/predict`, {
@@ -72,11 +91,12 @@ export async function predictMatch(homeName, awayName) {
   if (!response.ok) throw new Error('Prediction request failed')
   const data = await response.json()
   if (data.message) throw new Error(data.message)
-  return {
-    home: Math.round(data.home_win_prob * 100),
-    draw: Math.round(data.draw_prob * 100),
-    away: Math.round(data.away_win_prob * 100),
-  }
+  const [home, draw, away] = roundToHundred([
+    data.home_win_prob * 100,
+    data.draw_prob * 100,
+    data.away_win_prob * 100,
+  ])
+  return { home, draw, away }
 }
 
 /** Fetches all 104 World Cup fixtures (group + knockout), merged and sorted by date, from `/schedule/all`. */
@@ -106,8 +126,8 @@ export async function predictKnockout(homeName, awayName) {
   const { home, draw, away } = await predictMatch(homeName, awayName)
   if (home + away === 0) return { home: 50, away: 50 }
   const homeAdj = home + draw * home / (home + away)
-  const awayAdj = away + draw * away / (home + away)
-  return { home: Math.round(homeAdj), away: Math.round(awayAdj) }
+  const roundedHome = Math.round(homeAdj)
+  return { home: roundedHome, away: 100 - roundedHome }
 }
 
 /** Fetches squad/roster grouped by position for a given ESPN team ID from `/team/{espnId}/squad`. */

@@ -4,11 +4,8 @@
 // Default export: SegmentedProbabilityBar.
 
 // Below this percentage, a segment's label is hidden rather than shown — a
-// number doesn't legibly fit in a sliver that thin. Note that home/draw/away
-// are each rounded independently before reaching this component (see api.js),
-// so they don't always sum to exactly 100; a segment sitting just under this
-// threshold (label hidden) next to others just over it can make the visible
-// percentages look slightly inconsistent with the bar's actual proportions.
+// number doesn't legibly fit in a sliver that thin. home/draw/away are
+// rounded in api.js so they always sum to exactly 100.
 const THRESHOLD = 15
 
 export default function SegmentedProbabilityBar({ prediction, home, away }) {
