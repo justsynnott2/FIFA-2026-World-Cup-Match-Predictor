@@ -897,6 +897,13 @@ select {
   background: var(--panel);
   box-shadow: none;
   min-height: 7.5rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.fixture-card[role="button"]:hover {
+  cursor: pointer;
+  border-color: rgba(49, 192, 121, 0.4);
+  box-shadow: 0 0 0.6rem rgba(49, 192, 121, 0.15);
 }
 
 .fixture-card__meta {
@@ -1491,54 +1498,39 @@ select {
   text-align: center;
 }
 
-/* Card flip mechanic */
-.fixture-card-wrapper {
-  perspective: 1000px;
-  position: relative;
+/* Expand-downward reveal */
+.fixture-card:focus-visible {
+  outline: 2px solid var(--green);
+}
+
+.fixture-card__reveal {
   display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
 }
 
-.fixture-card-flipper {
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.45s ease;
-  display: grid;
+.fixture-card__reveal--open {
+  grid-template-rows: 1fr;
 }
 
-.fixture-card-wrapper.fixture-card-flipped .fixture-card-flipper {
-  transform: rotateY(180deg);
+.fixture-card__reveal-inner {
+  overflow: hidden;
 }
 
-.fixture-card__front,
-.fixture-card__back {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  width: 100%;
+@media (prefers-reduced-motion: reduce) {
+  .fixture-card__reveal {
+    transition: none;
+  }
+
+  .fixture-card {
+    transition: none;
+  }
 }
 
-.fixture-card__front {
-  cursor: pointer;
-}
-
-.fixture-card__back {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  transform: rotateY(180deg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.predict-hint {
+.fixture-card__verdict {
   font-size: 0.72rem;
   color: var(--muted);
-  margin-top: 0.75rem;
-}
-
-.fixture-card__back .pred-bar {
-  width: 100%;
+  margin-top: 0.5rem;
+  text-align: center;
+  white-space: nowrap;
 }

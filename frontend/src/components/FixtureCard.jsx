@@ -5,6 +5,33 @@ import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchSta
 import { formatMatchDate, getFixtureLabel } from '../utils/format'
 import SegmentedProbabilityBar from './SegmentedProbabilityBar'
 
+// Compares the model's predicted outcome against the actual full-time result
+// for a completed, predictable fixture. Uses all three prediction values
+// (unlike Overview's final-only verdict, which ignores the draw because a
+// final must resolve to a winner) — a group or knockout fixture can
+// legitimately have the draw as the model's most likely outcome.
+function getVerdict(fixture, prediction) {
+    const predictedHome = prediction.home >= prediction.draw && prediction.home >= prediction.away
+    const predictedAway = !predictedHome && prediction.away >= prediction.draw
+    const predictedOutcome = predictedHome ? 'home' : predictedAway ? 'away' : 'draw'
+
+    // Penalty shootouts are intentionally excluded from this comparison: the
+    // model predicts the 90/120-minute result and never predicted shootouts
+    // at all, so a knockout tie that went to penalties counts as a correctly
+    // predicted draw rather than being scored against the shootout winner.
+    const actualOutcome = fixture.home_score > fixture.away_score
+        ? 'home'
+        : fixture.away_score > fixture.home_score
+            ? 'away'
+            : 'draw'
+
+    const isMatch = predictedOutcome === actualOutcome
+    const result = isMatch ? 'called it' : 'upset'
+    return predictedOutcome === 'draw'
+        ? `Model predicted a draw, ${result}`
+        : `Model predicted a ${predictedOutcome === 'home' ? fixture.home_team : fixture.away_team} win, ${result}`
+}
+
 // Converts a form string e.g. "WWLDD" into colored dot spans
 function FormDots({ form }) {
     if (!form) return null
@@ -21,30 +48,39 @@ function FormDots({ form }) {
 
 /**
  * Single fixture card used across Fixtures and TeamPage's "Upcoming"/"Results"
- * lists. Upcoming, predictable fixtures flip on click to reveal a
- * lazily-fetched SegmentedProbabilityBar prediction on the back face. When a
- * team's ESPN id matches currentEspnId (e.g. viewing that team's own page),
- * its name renders as plain text instead of a link back to itself.
+ * lists. Upcoming and completed, predictable fixtures expand on click to
+ * reveal a lazily-fetched SegmentedProbabilityBar prediction beneath the
+ * teams; completed cards additionally show a verdict comparing the
+ * prediction to the real result. Live fixtures always render statically,
+ * regardless of predictability. When a team's ESPN id matches currentEspnId
+ * (e.g. viewing that team's own page), its name renders as plain text
+ * instead of a link back to itself.
  */
 export default function FixtureCard({ fixture, currentEspnId }) {
     const navigate = useNavigate()
     const isCompleted = isMatchCompleted(fixture.status)
     const isLive = isMatchLive(fixture.status)
-    const isUpcoming = !isCompleted && !isLive
     const isPredictable = !!fixture.home_logo && !!fixture.away_logo
     const homeIsSelf = fixture.home_espn_id === currentEspnId
     const awayIsSelf = fixture.away_espn_id === currentEspnId
-    const [isFlipped, setIsFlipped] = useState(false)
+    const [isExpanded, setIsExpanded] = useState(false)
     const [prediction, setPrediction] = useState(undefined)
 
-    function handleFlip() {
-        if (!isFlipped && prediction === undefined) {
+    function handleToggle() {
+        if (!isExpanded && prediction === undefined) {
             setPrediction('loading')
             predictMatch(fixture.home_team, fixture.away_team)
                 .then(result => setPrediction(result))
                 .catch(() => setPrediction('error'))
         }
-        setIsFlipped(true)
+        setIsExpanded(v => !v)
+    }
+
+    function handleKeyDown(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (e.key === ' ') e.preventDefault()
+            handleToggle()
+        }
     }
 
     const teamsMarkup = (
@@ -117,7 +153,7 @@ export default function FixtureCard({ fixture, currentEspnId }) {
         </div>
     )
 
-    if (!isUpcoming || !isPredictable) {
+    if (!isPredictable || isLive) {
         return (
             <article className="fixture-card">
                 {metaMarkup}
@@ -127,17 +163,18 @@ export default function FixtureCard({ fixture, currentEspnId }) {
     }
 
     return (
-        <div className={`fixture-card-wrapper${isFlipped ? ' fixture-card-flipped' : ''}`}>
-            <div className="fixture-card-flipper">
-
-                {/* Front face */}
-                <article className="fixture-card fixture-card__front" onClick={handleFlip}>
-                    {metaMarkup}
-                    {teamsMarkup}
-                </article>
-
-                {/* Back face */}
-                <div className="fixture-card fixture-card__back" onClick={() => setIsFlipped(false)}>
+        <article
+            className="fixture-card"
+            role="button"
+            tabIndex={0}
+            aria-expanded={isExpanded}
+            onClick={handleToggle}
+            onKeyDown={handleKeyDown}
+        >
+            {metaMarkup}
+            {teamsMarkup}
+            <div className={`fixture-card__reveal${isExpanded ? ' fixture-card__reveal--open' : ''}`}>
+                <div className="fixture-card__reveal-inner">
                     {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
                     {prediction && prediction !== 'loading' && prediction !== 'error' && (
                         <SegmentedProbabilityBar
@@ -146,10 +183,12 @@ export default function FixtureCard({ fixture, currentEspnId }) {
                             away={{ name: fixture.away_team, code: fixture.away_code }}
                         />
                     )}
+                    {isCompleted && prediction && prediction !== 'loading' && prediction !== 'error' && (
+                        <p className="fixture-card__verdict">{getVerdict(fixture, prediction)}</p>
+                    )}
                     {prediction === 'error' && <p className="predict-loading">Prediction unavailable</p>}
                 </div>
-
             </div>
-        </div>
+        </article>
     )
 }
