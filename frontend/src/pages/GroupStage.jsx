@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { groups } from '../data/tournament'
 import { predictMatch, getAllFixtures, getStandings } from '../utils/api'
@@ -119,6 +119,7 @@ export default function GroupStage() {
   const [espnStandings, setEspnStandings] = useState({})
   const [predictions, setPredictions] = useState({})
   const [standingsLoading, setStandingsLoading] = useState({})
+  const detailPanelRef = useRef(null)
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -168,6 +169,19 @@ export default function GroupStage() {
     tick()
     return () => clearTimeout(timerId)
   }, [])
+
+  // Scrolls the newly-expanded detail panel into view. Runs here rather than
+  // in the group-card click handler because on first expand (no group was
+  // previously active) the panel isn't mounted yet at click time — only
+  // after this state update commits does detailPanelRef.current exist.
+  useEffect(() => {
+    if (!expandedGroup || !detailPanelRef.current) return
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    detailPanelRef.current.scrollIntoView({
+      behavior: prefersReducedMotion ? 'instant' : 'smooth',
+      block: 'start',
+    })
+  }, [expandedGroup])
 
   function getActiveTab(groupId) {
     return activeTab[groupId] ?? 'results'
@@ -264,7 +278,7 @@ export default function GroupStage() {
 
       {/* Zone 1: Detail panel */}
       {activeGroup && (
-        <div className="group-detail-panel">
+        <div className="group-detail-panel" ref={detailPanelRef}>
           <button
             className="group-detail-panel__close secondary-button"
             type="button"
@@ -429,35 +443,49 @@ export default function GroupStage() {
 
       {/* Zone 2: 3-column group grid */}
       <div className="group-grid">
-        {groups.map((group) => (
-          <article
-            className={`group-card${expandedGroup === group.id ? ' group-card--active' : ''}`}
-            key={group.id}
-          >
-            <button
-              className="group-summary"
-              type="button"
-              onClick={() => setExpandedGroup(expandedGroup === group.id ? '' : group.id)}
-            >
-              <span>Group {group.id}</span>
-              <strong>{group.teams.map((team) => team.code).join(' / ')}</strong>
-            </button>
+        {groups.map((group) => {
+          const isExpanded = expandedGroup === group.id
+          const toggleGroup = () => setExpandedGroup(isExpanded ? '' : group.id)
 
-            <div className="team-list">
-              {group.teams.map((team) => (
-                <span key={team.code} className="team-badge">
-                  <span>{team.code}</span>
-                  <span
-                    className="team-name-link"
-                    onClick={() => navigate(`/team/${getEspnId(team.code, allFixtures)}`)}
-                  >
-                    {team.name}
+          return (
+            <article
+              className={`group-card${isExpanded ? ' group-card--active' : ''}`}
+              key={group.id}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isExpanded}
+              onClick={toggleGroup}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === ' ') e.preventDefault()
+                  toggleGroup()
+                }
+              }}
+            >
+              <div className="group-summary">
+                <span>Group {group.id}</span>
+                <strong>{group.teams.map((team) => team.code).join(' / ')}</strong>
+              </div>
+
+              <div className="team-list">
+                {group.teams.map((team) => (
+                  <span key={team.code} className="team-badge">
+                    <span>{team.code}</span>
+                    <span
+                      className="team-name-link"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/team/${getEspnId(team.code, allFixtures)}`)
+                      }}
+                    >
+                      {team.name}
+                    </span>
                   </span>
-                </span>
-              ))}
-            </div>
-          </article>
-        ))}
+                ))}
+              </div>
+            </article>
+          )
+        })}
       </div>
     </section>
   )

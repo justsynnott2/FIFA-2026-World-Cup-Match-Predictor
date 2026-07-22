@@ -84,6 +84,10 @@ button:disabled {
   opacity: 0.55;
 }
 
+button:focus-visible {
+  outline: 2px solid var(--green);
+}
+
 nav a {
   min-width: max-content;
   color: var(--muted);
@@ -108,6 +112,14 @@ nav a.active {
   color: var(--ink);
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: box-shadow 160ms ease, color 160ms ease;
+}
+
+.secondary-button:hover:not(:disabled) {
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 1px rgba(49, 192, 121, 0.4),
+    0 0 0.6rem rgba(49, 192, 121, 0.15);
 }
 
 .page {
@@ -357,6 +369,17 @@ p {
 
 .group-card {
   padding: 1rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.group-card[role="button"]:hover {
+  cursor: pointer;
+  border-color: rgba(49, 192, 121, 0.4);
+  box-shadow: 0 0 0.6rem rgba(49, 192, 121, 0.15);
+}
+
+.group-card:focus-visible {
+  outline: 2px solid var(--green);
 }
 
 .group-card.expanded {
@@ -368,6 +391,10 @@ p {
   background: rgba(49, 192, 121, 0.08);
 }
 
+.group-card--active[role="button"]:hover {
+  border-left-color: var(--green);
+}
+
 .group-detail-panel {
   position: relative;
   width: 100%;
@@ -377,6 +404,7 @@ p {
   padding: 1.25rem;
   margin-bottom: 1.5rem;
   box-shadow: none;
+  scroll-margin-top: 6rem;
 }
 
 .group-detail-panel__close {
@@ -760,6 +788,10 @@ select {
 
   .group-expanded-layout {
     grid-template-columns: 1fr;
+  }
+
+  .group-detail-panel {
+    scroll-margin-top: 9rem;
   }
 }
 
@@ -1523,6 +1555,14 @@ select {
   }
 
   .fixture-card {
+    transition: none;
+  }
+
+  .group-card {
+    transition: none;
+  }
+
+  .secondary-button {
     transition: none;
   }
 }
