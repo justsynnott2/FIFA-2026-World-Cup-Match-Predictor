@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAllFixtures } from '../utils/api'
-import { isMatchLive, isMatchCompleted, getFinalFixture, isTournamentOver } from '../utils/matchStatus'
+import { isMatchLive, isMatchCompleted, getFinalFixture, isTournamentOver, getFinalOutcome } from '../utils/matchStatus'
 import FixtureCard from '../components/FixtureCard'
 import Countdown from '../components/Countdown'
 import PaginationControls from '../components/PaginationControls'
@@ -34,17 +34,7 @@ function computeDelay(live, upcoming) {
 // countdown-card shell/classes — no timer, no prediction fetch.
 function ChampionCard({ finalFixture }) {
     const navigate = useNavigate()
-    const flagsPresent = finalFixture.home_winner != null || finalFixture.away_winner != null
-    const homeWon = flagsPresent
-        ? Boolean(finalFixture.home_winner)
-        : finalFixture.home_score > finalFixture.away_score
-
-    const winner = homeWon
-        ? { name: finalFixture.home_team, logo: finalFixture.home_logo, espnId: finalFixture.home_espn_id, score: finalFixture.home_score }
-        : { name: finalFixture.away_team, logo: finalFixture.away_logo, espnId: finalFixture.away_espn_id, score: finalFixture.away_score }
-    const runnerUp = homeWon
-        ? { name: finalFixture.away_team, score: finalFixture.away_score }
-        : { name: finalFixture.home_team, score: finalFixture.home_score }
+    const { winner, runnerUp, isPens, homeShootout, awayShootout } = getFinalOutcome(finalFixture)
 
     return (
         <div className="countdown-card champion-card">
@@ -60,9 +50,9 @@ function ChampionCard({ finalFixture }) {
             </div>
             <div className="countdown-card__detail">
                 Beat {runnerUp.name} {winner.score}–{runnerUp.score}
-                {finalFixture.status === 'STATUS_FINAL_PEN' && (
+                {isPens && (
                     <span className="fixture-card__pens">
-                        ({finalFixture.home_shootout_score}–{finalFixture.away_shootout_score} pens)
+                        ({homeShootout}–{awayShootout} pens)
                     </span>
                 )}
             </div>

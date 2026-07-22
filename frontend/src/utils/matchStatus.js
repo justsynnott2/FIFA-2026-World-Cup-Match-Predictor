@@ -60,3 +60,29 @@ export function isGroupStageOver(allFixtures) {
     const groupFixtures = allFixtures.filter(f => f.group)
     return groupFixtures.length > 0 && groupFixtures.every(f => isMatchCompleted(f.status))
 }
+
+// Derives the tournament final's outcome — winner, runner-up, and shootout
+// detail — from a single completed final fixture. Centralizes the derivation
+// previously inlined in Fixtures' ChampionCard so Overview can reuse it.
+export function getFinalOutcome(finalFixture) {
+    const flagsPresent = finalFixture.home_winner != null || finalFixture.away_winner != null
+    const homeWon = flagsPresent
+        ? Boolean(finalFixture.home_winner)
+        : finalFixture.home_score > finalFixture.away_score
+
+    const winner = homeWon
+        ? { name: finalFixture.home_team, logo: finalFixture.home_logo, espnId: finalFixture.home_espn_id, score: finalFixture.home_score }
+        : { name: finalFixture.away_team, logo: finalFixture.away_logo, espnId: finalFixture.away_espn_id, score: finalFixture.away_score }
+    const runnerUp = homeWon
+        ? { name: finalFixture.away_team, score: finalFixture.away_score, espnId: finalFixture.away_espn_id }
+        : { name: finalFixture.home_team, score: finalFixture.home_score, espnId: finalFixture.home_espn_id }
+
+    return {
+        homeWon,
+        winner,
+        runnerUp,
+        isPens: finalFixture.status === 'STATUS_FINAL_PEN',
+        homeShootout: finalFixture.home_shootout_score,
+        awayShootout: finalFixture.away_shootout_score,
+    }
+}
