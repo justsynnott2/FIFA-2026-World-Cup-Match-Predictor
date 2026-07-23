@@ -3,7 +3,7 @@
 A full-stack web app that predicted and tracked the 2026 FIFA World Cup in real time. A FastAPI backend serves win/draw/loss probabilities from an XGBoost model, while a React frontend polls ESPN's unofficial public API for live scores, standings, and bracket progress.
 
 **Live app:** [fifa-2026-world-cup-match-predictor.vercel.app](https://fifa-2026-world-cup-match-predictor.vercel.app)
-**Backend:** FastAPI on Render (free tier)
+**Backend:** [FastAPI on Render (free tier)](https://fifa-2026-world-cup-match-predictor.onrender.com/)
 
 The tournament finished on July 19, 2026. Spain beat Argentina 1-0 in the final, with England taking third place. The app now serves as a permanent record of that tournament: every page still works, showing final results, the completed bracket, and the model's calls on how it went.
 
