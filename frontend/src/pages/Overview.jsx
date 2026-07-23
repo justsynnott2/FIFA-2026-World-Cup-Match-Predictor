@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAllFixtures, predictMatch } from '../utils/api'
 import { getFinalFixture, getFinalOutcome } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
+import LoadingState from '../components/LoadingState'
 
 // Landing page: intro copy plus a hero card showing how the real final
 // finished alongside the model's read on that exact matchup — ties together
@@ -142,7 +143,7 @@ export default function Overview() {
               </div>
             </>
           ) : (
-            <p className="empty-state">Loading the final result...</p>
+            <LoadingState label="Loading the final result…" />
           )}
         </div>
 

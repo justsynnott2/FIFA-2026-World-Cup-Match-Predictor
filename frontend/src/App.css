@@ -31,11 +31,13 @@
   height: 2.7rem;
   place-items: center;
   border-radius: 0.5rem;
-  color: #04160D;
-  background: var(--green);
-  font-family: var(--font-cond);
-  font-weight: 700;
-  font-size: 0.82rem;
+  background: #000;
+}
+
+.brand span img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
 }
 
 .brand strong {
@@ -803,7 +805,7 @@ select {
 
   .hero-copy {
     min-height: auto;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--panel);
   }
 
   .stat-grid,
@@ -893,6 +895,187 @@ select {
   font-size: 1.1rem;
 }
 
+.champion-card {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.champion-card::before {
+  content: '';
+  position: absolute;
+  top: -4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30rem;
+  height: 16rem;
+  background: radial-gradient(ellipse at center, rgba(49, 192, 121, 0.18), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.champion-card-wrap {
+  position: relative;
+  z-index: 0;
+}
+
+.champion-outline {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.champion-outline__stroke,
+.champion-outline__halo,
+.champion-outline--offset {
+  fill: none;
+  stroke: rgba(49, 192, 121, 0.55);
+  stroke-linecap: round;
+  stroke-dasharray: 20 80;
+  animation: champion-outline-travel 9s linear infinite;
+}
+
+.champion-outline--offset {
+  animation-delay: -4.5s;
+}
+
+.champion-outline__stroke,
+.champion-outline__stroke.champion-outline--offset {
+  stroke-width: 1px;
+}
+
+.champion-outline__halo,
+.champion-outline__halo.champion-outline--offset {
+  stroke-width: 2px;
+  opacity: 0.2;
+}
+
+@keyframes champion-outline-travel {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -100; }
+}
+
+.champion-watermark {
+  position: absolute;
+  top: -2rem;
+  right: -2rem;
+  width: 16rem;
+  height: 16rem;
+  object-fit: contain;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.champion-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.champion-hero__beat {
+  color: var(--muted);
+}
+
+.champion-hero__beat strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.champion-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-strong);
+}
+
+.champion-totals__figure {
+  display: block;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.8rem;
+  color: var(--ink);
+}
+
+.champion-totals__caption {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.champion-road {
+  width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-strong);
+  text-align: left;
+}
+
+.champion-road__heading {
+  margin-bottom: 0.75rem;
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: var(--muted);
+  text-align: center;
+}
+
+.champion-road__leg {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--green);
+  background: var(--panel-2);
+}
+
+.champion-road__leg + .champion-road__leg {
+  margin-top: 0.4rem;
+}
+
+.champion-road__leg--final {
+  border-left-color: var(--gold);
+}
+
+.champion-road__round {
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: var(--green);
+}
+
+.champion-road__leg--final .champion-road__round {
+  color: var(--gold);
+}
+
+.champion-road__opponent {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.champion-road__score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--green);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .fixtures-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -911,6 +1094,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -918,6 +1102,17 @@ select {
 .pagination-controls__label {
   color: var(--muted);
   font-size: 0.875rem;
+}
+
+.pagination-controls__page,
+.pagination-controls__arrow {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.85rem;
+}
+
+.pagination-controls__page {
+  min-width: 2.5rem;
+  text-align: center;
 }
 
 .fixture-card {
@@ -1565,6 +1760,18 @@ select {
   .secondary-button {
     transition: none;
   }
+
+  .loading-state__strip::after {
+    display: none;
+  }
+
+  .champion-outline__stroke,
+  .champion-outline__halo,
+  .champion-outline--offset {
+    animation: none;
+    stroke-dasharray: none;
+    opacity: 0.3;
+  }
 }
 
 .fixture-card__verdict {
@@ -1573,4 +1780,71 @@ select {
   margin-top: 0.5rem;
   text-align: center;
   white-space: nowrap;
+}
+
+/* Shared loading indicator: lower-third strip echoing the probability bar */
+.loading-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.loading-state__strip {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 22rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-top: 1px solid var(--line-strong);
+}
+
+.loading-state--compact .loading-state__strip {
+  height: 0.7rem;
+  max-width: 14rem;
+  border-top: none;
+}
+
+.loading-state__seg {
+  display: block;
+  height: 100%;
+  flex: 1 0 0%;
+}
+
+.loading-state__seg--home {
+  background: var(--green);
+}
+
+.loading-state__seg--draw {
+  background: var(--gold);
+}
+
+.loading-state__seg--away {
+  background: var(--red);
+}
+
+.loading-state__label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes loading-state-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+.loading-state__strip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--ink), transparent);
+  opacity: 0.3;
+  animation: loading-state-shimmer 2s linear infinite;
 }

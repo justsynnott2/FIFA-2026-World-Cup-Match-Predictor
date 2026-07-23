@@ -5,6 +5,7 @@ import { predictMatch, getAllFixtures, getStandings } from '../utils/api'
 import { computeLiveStandings, computeSimStandings } from '../utils/standings'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED, isGroupStageOver } from '../utils/matchStatus'
 import SegmentedProbabilityBar from '../components/SegmentedProbabilityBar'
+import LoadingState from '../components/LoadingState'
 
 // Group Stage page: a 3-column grid of all 12 groups, each expandable into a
 // detail panel with two tabs — "Results" (real fixtures/standings) and
@@ -243,7 +244,7 @@ export default function GroupStage() {
     }
   }
 
-  if (isLoading) return <section className="page"><p className="empty-state">Loading fixtures...</p></section>
+  if (isLoading) return <section className="page"><LoadingState label="Loading fixtures…" /></section>
   if (error) return <section className="page"><p className="empty-state">{error}</p></section>
 
   const espnIdToCode = Object.fromEntries(

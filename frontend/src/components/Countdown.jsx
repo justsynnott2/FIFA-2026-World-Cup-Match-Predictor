@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { predictMatch } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import SegmentedProbabilityBar from './SegmentedProbabilityBar'
+import LoadingState from './LoadingState'
 
 /**
  * Featured match card at the top of the page — shows a live match if one is in
@@ -106,9 +107,7 @@ export default function Countdown({ fixture, isKnownLive = false, label = 'Next 
                     </div>
                     <div className="countdown-card__timer">{timeLeft}</div>
                     <div className="countdown-card__detail">{fixture.detail}</div>
-                    {prediction === 'loading' && (
-                        <p className="predict-loading">Fetching prediction…</p>
-                    )}
+                    {prediction === 'loading' && <LoadingState compact />}
                     {prediction && prediction !== 'loading' && prediction !== 'error' && (
                         <SegmentedProbabilityBar
                             prediction={prediction}

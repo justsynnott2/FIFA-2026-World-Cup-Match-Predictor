@@ -24,7 +24,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand"><span>WC26</span><strong>Match Predictor</strong></div>
+        <div className="brand"><span><img src="/logo.png" alt="Match Predictor" /></span><strong>Match Predictor</strong></div>
         <nav aria-label="Primary navigation">
           {navLinks.map(({ label, to, end }) => (
             <NavLink

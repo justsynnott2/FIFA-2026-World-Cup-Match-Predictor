@@ -65,7 +65,9 @@ def get_team_news(espn_id: str):
     def fetch():
         try:
             url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news"
-            response = requests.get(url, params={'team': espn_id, 'limit': 20})
+            # ESPN may return fewer articles than requested (e.g. if a team has
+            # less coverage) — this raises the ceiling to 50, not a guarantee of 50.
+            response = requests.get(url, params={'team': espn_id, 'limit': 50})
             data = response.json()
             articles = data.get('articles', [])
 

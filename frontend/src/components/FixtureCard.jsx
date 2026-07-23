@@ -4,6 +4,7 @@ import { predictMatch } from '../utils/api'
 import { isMatchLive, isMatchCompleted, STATUS_DELAYED } from '../utils/matchStatus'
 import { formatMatchDate, getFixtureLabel } from '../utils/format'
 import SegmentedProbabilityBar from './SegmentedProbabilityBar'
+import LoadingState from './LoadingState'
 
 // Compares the model's predicted outcome against the actual full-time result
 // for a completed, predictable fixture. Uses all three prediction values
@@ -175,7 +176,7 @@ export default function FixtureCard({ fixture, currentEspnId }) {
             {teamsMarkup}
             <div className={`fixture-card__reveal${isExpanded ? ' fixture-card__reveal--open' : ''}`}>
                 <div className="fixture-card__reveal-inner">
-                    {prediction === 'loading' && <p className="predict-loading">Fetching…</p>}
+                    {prediction === 'loading' && <LoadingState compact />}
                     {prediction && prediction !== 'loading' && prediction !== 'error' && (
                         <SegmentedProbabilityBar
                             prediction={prediction}

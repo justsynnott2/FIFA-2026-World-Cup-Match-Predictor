@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { getAllFixtures, getTeamSquad, getTeamNews } from '../utils/api'
 import FixtureCard from '../components/FixtureCard'
+import PaginationControls from '../components/PaginationControls'
+import LoadingState from '../components/LoadingState'
 import { allTeams } from '../data/tournament'
 
 // Per-team page (squad, fixtures, news), keyed by ESPN team ID from the route
@@ -44,7 +46,7 @@ export default function TeamPage() {
   }, [espnId])
 
   if (!allFixtures) {
-    return <section className="page"><p className="empty-state">Loading…</p></section>
+    return <section className="page"><LoadingState label="Loading team…" /></section>
   }
 
   // Any fixture involving this team works as an "identity" source — there's no
@@ -99,7 +101,7 @@ export default function TeamPage() {
         <div className="team-col--roster">
           <h2>Squad</h2>
           {!squad ? (
-            <p className="empty-state">Loading squad…</p>
+            <LoadingState label="Loading squad…" />
           ) : !hasAnyPlayers ? (
             <p className="empty-state">Squad not yet available.</p>
           ) : (
@@ -142,7 +144,7 @@ export default function TeamPage() {
           <div>
             <h2>Recent News</h2>
             {!news ? (
-              <p className="empty-state">Loading news…</p>
+              <LoadingState label="Loading news…" />
             ) : news.length === 0 ? (
               <p className="empty-state">No news available.</p>
             ) : (
@@ -173,25 +175,12 @@ export default function TeamPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
-                  <button
-                    className="secondary-button"
-                    onClick={() => setNewsPage(p => p - 1)}
-                    disabled={newsPage === 0}
-                  >
-                    ← Prev
-                  </button>
-                  <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-                    Page {newsPage + 1} of {Math.ceil(news.length / 5)}
-                  </span>
-                  <button
-                    className="secondary-button"
-                    onClick={() => setNewsPage(p => p + 1)}
-                    disabled={(newsPage + 1) * 5 >= news.length}
-                  >
-                    Next →
-                  </button>
-                </div>
+                <PaginationControls
+                  page={newsPage}
+                  totalItems={news.length}
+                  pageSize={5}
+                  setPage={setNewsPage}
+                />
               </>
             )}
           </div>

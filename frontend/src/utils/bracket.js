@@ -3,7 +3,7 @@
 // matchups that haven't been determined yet into the real fixture that will fill them.
 // Exports: getRealR32Matches, buildBracketState, isRealTeam, R32_FIXTURE_BY_MATCH_NUM,
 // BRACKET_STRUCTURE, buildFixtureLookup, parsePlaceholderRef, getStructuralFeeders,
-// resolveSlotTeam.
+// resolveSlotTeam, getChampionSummary.
 
 import { isMatchCompleted } from './matchStatus'
 
@@ -213,4 +213,65 @@ export function resolveSlotTeam(teamName, teamCode, teamLogo, simState, fixtureL
   const srcResult = simState[fixtureId]
   if (!srcResult) return null
   return loser ? srcResult.loser : srcResult.winner
+}
+
+const KNOCKOUT_ROUND_LABELS = {
+  'round-of-32': 'R32',
+  'round-of-16': 'R16',
+  'quarterfinals': 'QF',
+  'semifinals': 'SF',
+  'final': 'Final',
+}
+const KNOCKOUT_ROUND_ORDER = Object.keys(KNOCKOUT_ROUND_LABELS)
+
+/**
+ * Computes a champion's whole-tournament summary: matches played/won, goals
+ * scored (across every completed fixture involving them, including the
+ * group stage), and their ordered knockout run from Round of 32 through the
+ * Final (the 3rd-place match is deliberately excluded — a champion never
+ * plays it). Lives here rather than in matchStatus.js because it needs this
+ * module's knockout round ordering (KNOCKOUT_ROUND_ORDER, sharing the same
+ * round-key set BRACKET_STRUCTURE etc. already use), and matchStatus.js
+ * can't import from this module without creating a circular dependency —
+ * this module already imports isMatchCompleted from matchStatus.js.
+ */
+export function getChampionSummary(allFixtures, espnId) {
+  const empty = { played: 0, won: 0, goals: 0, run: [] }
+  if (!espnId) return empty
+
+  const teamFixtures = allFixtures.filter(
+    f => isMatchCompleted(f.status) && (f.home_espn_id === espnId || f.away_espn_id === espnId)
+  )
+
+  let played = 0, won = 0, goals = 0
+  for (const f of teamFixtures) {
+    const isHome = f.home_espn_id === espnId
+    const flagsPresent = f.home_winner != null || f.away_winner != null
+    const homeWon = flagsPresent ? Boolean(f.home_winner) : f.home_score > f.away_score
+    const teamWon = isHome ? homeWon : !homeWon
+
+    played += 1
+    if (teamWon) won += 1
+    goals += Number(isHome ? f.home_score : f.away_score)
+  }
+
+  const knockoutFixtures = teamFixtures.filter(f => KNOCKOUT_ROUND_LABELS[f.round] !== undefined)
+  const run = KNOCKOUT_ROUND_ORDER
+    .map(round => knockoutFixtures.find(f => f.round === round))
+    .filter(Boolean)
+    .map(f => {
+      const isHome = f.home_espn_id === espnId
+      return {
+        round: f.round,
+        label: KNOCKOUT_ROUND_LABELS[f.round],
+        opponent: isHome ? f.away_team : f.home_team,
+        teamScore: isHome ? f.home_score : f.away_score,
+        opponentScore: isHome ? f.away_score : f.home_score,
+        isPens: f.status === 'STATUS_FINAL_PEN',
+        teamShootout: isHome ? f.home_shootout_score : f.away_shootout_score,
+        opponentShootout: isHome ? f.away_shootout_score : f.home_shootout_score,
+      }
+    })
+
+  return { played, won, goals, run }
 }
