@@ -185,12 +185,13 @@ export function getStructuralFeeders(round, fixtureId) {
  * text (ESPN already backfilled it with the real result), `structuralRef` —
  * the caller-supplied output of getStructuralFeeders — is used instead, since
  * it doesn't depend on that text surviving. Returns null (renders as TBD) if
- * nothing resolves.
+ * nothing resolves. Returned team objects also carry an espnId, for linking
+ * to the team's page.
  */
-export function resolveSlotTeam(teamName, teamCode, teamLogo, simState, fixtureLookup, mode, isSeeded = false, structuralRef = null) {
+export function resolveSlotTeam(teamName, teamCode, teamLogo, teamEspnId, simState, fixtureLookup, mode, isSeeded = false, structuralRef = null) {
   const trustRawTeam = isSeeded || mode === 'live'
   if (trustRawTeam && isRealTeam(null, teamLogo)) {
-    return { name: teamName, code: teamCode, logo: teamLogo }
+    return { name: teamName, code: teamCode, logo: teamLogo, espnId: teamEspnId }
   }
   const ref = parsePlaceholderRef(teamName) ?? structuralRef
   if (!ref) return null
@@ -201,11 +202,11 @@ export function resolveSlotTeam(teamName, teamCode, teamLogo, simState, fixtureL
     if (srcFixture && isMatchCompleted(srcFixture.status)) {
       const homeWon = parseFloat(srcFixture.home_score) > parseFloat(srcFixture.away_score)
       const winner = homeWon
-        ? { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
-        : { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
+        ? { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo, espnId: srcFixture.home_espn_id }
+        : { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo, espnId: srcFixture.away_espn_id }
       const loserTeam = homeWon
-        ? { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo }
-        : { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo }
+        ? { name: srcFixture.away_team, code: srcFixture.away_code, logo: srcFixture.away_logo, espnId: srcFixture.away_espn_id }
+        : { name: srcFixture.home_team, code: srcFixture.home_code, logo: srcFixture.home_logo, espnId: srcFixture.home_espn_id }
       return loser ? loserTeam : winner
     }
   }

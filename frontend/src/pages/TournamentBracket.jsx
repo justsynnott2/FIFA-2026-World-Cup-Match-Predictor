@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getKnockoutFixtures, predictKnockout } from '../utils/api'
 import { buildBracketState, isRealTeam, BRACKET_STRUCTURE, buildFixtureLookup, resolveSlotTeam, getStructuralFeeders } from '../utils/bracket'
 import { isMatchLive, isMatchCompleted, isTournamentOver } from '../utils/matchStatus'
@@ -17,25 +18,46 @@ const BRACKET_HEADERS = [
   'Semifinals', 'Quarterfinals', 'Round of 16', 'Round of 32',
 ]
 
-const TBD_PROPS = { teamAName: 'TBD', teamBName: 'TBD', winnerCode: null, teamACode: null, teamBCode: null, clickable: false, pending: false, onClick: undefined }
+const TBD_PROPS = { teamAName: 'TBD', teamBName: 'TBD', teamAEspnId: null, teamBEspnId: null, winnerCode: null, teamACode: null, teamBCode: null, clickable: false, pending: false, onClick: undefined }
 
 function simMatchToProps({ teamA, teamB, winner }) {
   return {
     teamAName: teamA && isRealTeam(teamA.espnId, teamA.logo) ? teamA.name : 'TBD',
     teamBName: teamB && isRealTeam(teamB.espnId, teamB.logo) ? teamB.name : 'TBD',
+    teamAEspnId: teamA?.espnId ?? null,
+    teamBEspnId: teamB?.espnId ?? null,
     teamACode: teamA?.code ?? null,
     teamBCode: teamB?.code ?? null,
     winnerCode: winner?.code ?? null,
   }
 }
 
-function probFor(match, team) {
-  if (!match?.probs || !team) return null
-  return match.teamA?.code === team.code ? match.probs.home : match.probs.away
+// Orients a completed fixture's raw score so the given team's own score comes
+// first — used for the concluded podium's scorelines, since resolveOutcome
+// doesn't carry scores.
+function scorelineFor(fixture, team) {
+  if (!fixture || !team) return null
+  const isHome = fixture.home_code === team.code
+  const own = isHome ? fixture.home_score : fixture.away_score
+  const opp = isHome ? fixture.away_score : fixture.home_score
+  return `${own}–${opp}`
 }
 
 function matchModifierClass(clickable, pending) {
   return `${clickable ? ' bracket-match--clickable' : ''}${pending ? ' bracket-match--pending' : ''}`
+}
+
+// Scrolls the tabs container into view on every click, including a re-click
+// on the already-active tab, so it doubles as a way to jump back to the
+// bracket. Called directly from the click handlers rather than an effect
+// keyed on activeTab, since the tabs are always mounted and such an effect
+// would also fire on first render.
+function scrollTabsIntoView(ref) {
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ref.current?.scrollIntoView({
+    behavior: prefersReducedMotion ? 'instant' : 'smooth',
+    block: 'start',
+  })
 }
 
 // Shootout-decided matches have level full-time scores, so comparing scores
@@ -48,31 +70,49 @@ function didHomeWin(fixture) {
   return parseFloat(fixture.home_score) > parseFloat(fixture.away_score)
 }
 
-function BracketMatch({ teamAName, teamBName, winnerCode, teamACode, teamBCode, clickable, pending, onClick }) {
+function BracketMatch({ teamAName, teamBName, teamAEspnId, teamBEspnId, winnerCode, teamACode, teamBCode, clickable, pending, onClick }) {
+  const navigate = useNavigate()
   const aWon = winnerCode && winnerCode === teamACode
   const bWon = winnerCode && winnerCode === teamBCode
   return (
     <div className={`bracket-match${matchModifierClass(clickable, pending)}`} onClick={clickable ? onClick : undefined}>
       <div className={`bracket-team${aWon ? ' winner' : bWon ? ' loser' : ''}`}>
-        {teamAName ?? 'TBD'}
+        {teamAEspnId ? (
+          <span className="team-name-link" onClick={(e) => { e.stopPropagation(); navigate(`/team/${teamAEspnId}`) }}>
+            {teamAName ?? 'TBD'}
+          </span>
+        ) : (teamAName ?? 'TBD')}
       </div>
       <div className={`bracket-team${bWon ? ' winner' : aWon ? ' loser' : ''}`}>
-        {teamBName ?? 'TBD'}
+        {teamBEspnId ? (
+          <span className="team-name-link" onClick={(e) => { e.stopPropagation(); navigate(`/team/${teamBEspnId}`) }}>
+            {teamBName ?? 'TBD'}
+          </span>
+        ) : (teamBName ?? 'TBD')}
       </div>
     </div>
   )
 }
 
-function FinalMatch({ teamAName, teamBName, winnerCode, teamACode, teamBCode, clickable, pending, onClick }) {
+function FinalMatch({ teamAName, teamBName, teamAEspnId, teamBEspnId, winnerCode, teamACode, teamBCode, clickable, pending, onClick }) {
+  const navigate = useNavigate()
   const aWon = winnerCode && winnerCode === teamACode
   const bWon = winnerCode && winnerCode === teamBCode
   return (
     <div className={`bracket-final-match${matchModifierClass(clickable, pending)}`} onClick={clickable ? onClick : undefined}>
       <div className={`bracket-team${aWon ? ' winner' : bWon ? ' loser' : ''}`}>
-        {teamAName ?? 'TBD'}
+        {teamAEspnId ? (
+          <span className="team-name-link" onClick={(e) => { e.stopPropagation(); navigate(`/team/${teamAEspnId}`) }}>
+            {teamAName ?? 'TBD'}
+          </span>
+        ) : (teamAName ?? 'TBD')}
       </div>
       <div className={`bracket-team${bWon ? ' winner' : aWon ? ' loser' : ''}`}>
-        {teamBName ?? 'TBD'}
+        {teamBEspnId ? (
+          <span className="team-name-link" onClick={(e) => { e.stopPropagation(); navigate(`/team/${teamBEspnId}`) }}>
+            {teamBName ?? 'TBD'}
+          </span>
+        ) : (teamBName ?? 'TBD')}
       </div>
     </div>
   )
@@ -103,9 +143,40 @@ function CenterCol({ finalProps, thirdProps }) {
   )
 }
 
+function PodiumColumn({ roleClass, rank, medalLabel, team, detail }) {
+  const navigate = useNavigate()
+  return (
+    <div className={`podium__col podium__col--${roleClass}`}>
+      {team ? (
+        <>
+          <img src={team.logo} alt={team.name} className="podium__logo" />
+          {team.espnId ? (
+            <span className="podium__name team-name-link" onClick={(e) => { e.stopPropagation(); navigate(`/team/${team.espnId}`) }}>
+              {team.name}
+            </span>
+          ) : (
+            <span className="podium__name">{team.name}</span>
+          )}
+          {detail !== undefined && <span className="podium__detail">{detail}</span>}
+        </>
+      ) : (
+        <>
+          <span className="podium__logo podium__logo--placeholder" aria-hidden="true" />
+          <span className="podium__name podium__name--placeholder">—</span>
+        </>
+      )}
+      <div className="podium__block">
+        <span className="podium__rank">{rank}</span>
+        <span className="podium__medal">{medalLabel}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function TournamentBracket() {
   const [knockoutFixtures, setKnockoutFixtures] = useState(null)
   const [activeTab, setActiveTab]                = useState('live')   // 'live' | 'simulate'
+  const tabsRef = useRef(null)
   const [liveSim, setLiveSim]                     = useState({})
   const [simSim, setSimSim]                       = useState({})
   const [liveLoading, setLiveLoading]             = useState(false)
@@ -180,8 +251,8 @@ export default function TournamentBracket() {
 
     const locked = activeTab === 'live' && isMatchCompleted(fixture.status)
     if (locked) {
-      const teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo }
-      const teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo }
+      const teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo, espnId: fixture.home_espn_id }
+      const teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo, espnId: fixture.away_espn_id }
       const homeWon = didHomeWin(fixture)
       return { teamA, teamB, winner: homeWon ? teamA : teamB, locked: true }
     }
@@ -199,8 +270,8 @@ export default function TournamentBracket() {
       // parsePlaceholderRef does recognize). Only trust it if BOTH sides
       // resolve — a partial result isn't useful here.
       const viaHelper = {
-        teamA: resolveSlotTeam(fixture.home_team, fixture.home_code, fixture.home_logo, activeSim, fixtureLookup, activeTab),
-        teamB: resolveSlotTeam(fixture.away_team, fixture.away_code, fixture.away_logo, activeSim, fixtureLookup, activeTab),
+        teamA: resolveSlotTeam(fixture.home_team, fixture.home_code, fixture.home_logo, fixture.home_espn_id, activeSim, fixtureLookup, activeTab),
+        teamB: resolveSlotTeam(fixture.away_team, fixture.away_code, fixture.away_logo, fixture.away_espn_id, activeSim, fixtureLookup, activeTab),
       }
       if (viaHelper.teamA && viaHelper.teamB) {
         return { ...viaHelper, winner: null, locked: false }
@@ -222,8 +293,8 @@ export default function TournamentBracket() {
 
     const isSeeded = fixture.round === 'round-of-32'
     const feeders = getStructuralFeeders(fixture.round, fixtureId)
-    const teamA = resolveSlotTeam(fixture.home_team, fixture.home_code, fixture.home_logo, activeSim, fixtureLookup, activeTab, isSeeded, feeders?.home)
-    const teamB = resolveSlotTeam(fixture.away_team, fixture.away_code, fixture.away_logo, activeSim, fixtureLookup, activeTab, isSeeded, feeders?.away)
+    const teamA = resolveSlotTeam(fixture.home_team, fixture.home_code, fixture.home_logo, fixture.home_espn_id, activeSim, fixtureLookup, activeTab, isSeeded, feeders?.home)
+    const teamB = resolveSlotTeam(fixture.away_team, fixture.away_code, fixture.away_logo, fixture.away_espn_id, activeSim, fixtureLookup, activeTab, isSeeded, feeders?.away)
     return { teamA, teamB, winner: null, locked: false }
   }
 
@@ -259,8 +330,8 @@ export default function TournamentBracket() {
           teamA = { name: fixture.home_team, code: fixture.home_code, logo: fixture.home_logo }
           teamB = { name: fixture.away_team, code: fixture.away_code, logo: fixture.away_logo }
         } else {
-          teamA = resolveSlotTeam(fixture.home_team, fixture.home_code, fixture.home_logo, simResults, fixtureLookup, mode, isSeeded, feeders?.home)
-          teamB = resolveSlotTeam(fixture.away_team, fixture.away_code, fixture.away_logo, simResults, fixtureLookup, mode, isSeeded, feeders?.away)
+          teamA = resolveSlotTeam(fixture.home_team, fixture.home_code, fixture.home_logo, fixture.home_espn_id, simResults, fixtureLookup, mode, isSeeded, feeders?.home)
+          teamB = resolveSlotTeam(fixture.away_team, fixture.away_code, fixture.away_logo, fixture.away_espn_id, simResults, fixtureLookup, mode, isSeeded, feeders?.away)
         }
 
         let winner, loserTeam, source, probs = null
@@ -294,8 +365,8 @@ export default function TournamentBracket() {
         teamA = { name: finalFixture.home_team, code: finalFixture.home_code, logo: finalFixture.home_logo }
         teamB = { name: finalFixture.away_team, code: finalFixture.away_code, logo: finalFixture.away_logo }
       } else {
-        teamA = resolveSlotTeam(finalFixture.home_team, finalFixture.home_code, finalFixture.home_logo, simResults, fixtureLookup, mode, false, finalFeeders?.home)
-        teamB = resolveSlotTeam(finalFixture.away_team, finalFixture.away_code, finalFixture.away_logo, simResults, fixtureLookup, mode, false, finalFeeders?.away)
+        teamA = resolveSlotTeam(finalFixture.home_team, finalFixture.home_code, finalFixture.home_logo, finalFixture.home_espn_id, simResults, fixtureLookup, mode, false, finalFeeders?.home)
+        teamB = resolveSlotTeam(finalFixture.away_team, finalFixture.away_code, finalFixture.away_logo, finalFixture.away_espn_id, simResults, fixtureLookup, mode, false, finalFeeders?.away)
       }
       let winner, loserTeam, source, probs = null
       if (useReal) {
@@ -443,16 +514,6 @@ export default function TournamentBracket() {
   const finalSim      = finalId ? activeSim[finalId] ?? null : null
   const champion      = finalSim?.winner ?? null
   const runnerUp      = champion ? (finalSim.teamA?.code === champion.code ? finalSim.teamB : finalSim.teamA) : null
-  const sfLeftId       = BRACKET_STRUCTURE.left.semifinals[0]
-  const sfRightId      = BRACKET_STRUCTURE.right.semifinals[0]
-  const sfSim          = [activeSim[sfLeftId], activeSim[sfRightId]].filter(Boolean)
-
-  const oddsTeams = finalSim ? [
-    { team: champion,             prob: probFor(finalSim, champion),              label: 'Champion' },
-    { team: runnerUp,             prob: probFor(finalSim, runnerUp),              label: 'Runner-up' },
-    { team: sfSim[0]?.loser,      prob: probFor(sfSim[0], sfSim[0]?.loser),      label: 'Semifinalist' },
-    { team: sfSim[1]?.loser,      prob: probFor(sfSim[1], sfSim[1]?.loser),      label: 'Semifinalist' },
-  ].filter(row => row.team) : []
 
   // "Fully simulated" means the final and 3rd-place match both have a
   // decided winner per the active tab's own resolution rules — real or sim
@@ -464,6 +525,16 @@ export default function TournamentBracket() {
   const finalOutcome = finalId ? resolveOutcome(finalId) : null
   const thirdOutcome = thirdId ? resolveOutcome(thirdId) : null
   const isFullySimulated = Boolean(finalOutcome?.winner) && Boolean(thirdOutcome?.winner)
+
+  const finalFixtureRaw = finalId ? fixtureLookup[finalId] : null
+  const thirdFixtureRaw = thirdId ? fixtureLookup[thirdId] : null
+  const thirdPlaceTeam   = thirdOutcome?.winner ?? null
+
+  // Concluded (real) podium — only meaningful once tournamentOver && live.
+  const concludedChampion = finalOutcome?.winner ?? null
+  const concludedRunnerUp = concludedChampion
+    ? (finalOutcome.teamA?.code === concludedChampion.code ? finalOutcome.teamB : finalOutcome.teamA)
+    : null
 
   // Drives the Live tab's toolbar: once the real final has been played out,
   // the simulate/reset controls no longer make sense and are replaced with a
@@ -485,15 +556,16 @@ export default function TournamentBracket() {
   return (
     <section className="page bracket-page">
       <div className="section-heading">
-        <span className="eyebrow">Tournament Bracket</span>
-        <h1>104-match path from groups to champion.</h1>
+        <span className="eyebrow">Knockout Stage</span>
+        <h1>Thirty-two matches. One trophy.</h1>
+        <p className="section-heading__subtitle">Live results and simulations</p>
       </div>
 
-      <div className="bracket-tabs">
-        <button type="button" className={activeTab === 'live' ? 'active' : 'secondary-button'} onClick={() => setActiveTab('live')}>
+      <div className="bracket-tabs" ref={tabsRef}>
+        <button type="button" className={activeTab === 'live' ? 'active' : 'secondary-button'} onClick={() => { setActiveTab('live'); scrollTabsIntoView(tabsRef) }}>
           Live
         </button>
-        <button type="button" className={activeTab === 'simulate' ? 'active' : 'secondary-button'} onClick={() => setActiveTab('simulate')}>
+        <button type="button" className={activeTab === 'simulate' ? 'active' : 'secondary-button'} onClick={() => { setActiveTab('simulate'); scrollTabsIntoView(tabsRef) }}>
           Simulate
         </button>
       </div>
@@ -544,27 +616,34 @@ export default function TournamentBracket() {
 
       <div className="champion-panel">
         {tournamentOver && activeTab === 'live' ? (
-          // Tournament's over — show the real champion from finalOutcome
-          // (which resolves to the real winner on the Live tab) instead of
-          // sim state, and skip the odds list, which has no meaning for a
-          // decided bracket.
-          <div>
-            <span className="eyebrow">World Cup Champion</span>
-            <h2>{finalOutcome?.winner?.name}</h2>
-          </div>
+          // Tournament's over — show the real standings from finalOutcome/
+          // thirdOutcome (which resolve to real winners on the Live tab)
+          // instead of sim state.
+          <>
+            <div className="champion-panel__heading">
+              <span className="eyebrow">Final Standings</span>
+              {concludedChampion && (
+                <p className="section-heading__subtitle">{concludedChampion.name} lifted the trophy</p>
+              )}
+            </div>
+            <div className="podium">
+              <PodiumColumn roleClass="runner-up" rank={2} medalLabel="Runner-Up" team={concludedRunnerUp}
+                detail={concludedRunnerUp && `Lost the final ${scorelineFor(finalFixtureRaw, concludedRunnerUp)}`} />
+              <PodiumColumn roleClass="champion" rank={1} medalLabel="Champions" team={concludedChampion}
+                detail={concludedChampion && `Won the final ${scorelineFor(finalFixtureRaw, concludedChampion)}`} />
+              <PodiumColumn roleClass="third" rank={3} medalLabel="Third" team={thirdPlaceTeam}
+                detail={thirdPlaceTeam && `Won the 3rd-place match ${scorelineFor(thirdFixtureRaw, thirdPlaceTeam)}`} />
+            </div>
+          </>
         ) : (
           <>
-            <div>
-              <span className="eyebrow">Projected Champion</span>
-              <h2>{champion ? champion.name : 'Run a simulation'}</h2>
+            <div className="champion-panel__heading">
+              <span className="eyebrow">Projected Standings</span>
             </div>
-            <div className="odds-list">
-              {oddsTeams.map(({ team, prob, label }) => (
-                <div className="odds-row" key={team.code}>
-                  <span>{team.name} <em>({label})</em></span>
-                  <strong>{prob != null ? `${prob}%` : '—'}</strong>
-                </div>
-              ))}
+            <div className="podium">
+              <PodiumColumn roleClass="runner-up" rank={2} medalLabel="Runner-Up" team={runnerUp} />
+              <PodiumColumn roleClass="champion" rank={1} medalLabel="Champions" team={champion} />
+              <PodiumColumn roleClass="third" rank={3} medalLabel="Third" team={thirdPlaceTeam} />
             </div>
           </>
         )}
