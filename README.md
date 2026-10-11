@@ -13,12 +13,12 @@ The tournament finished on July 19, 2026. Spain beat Argentina 1-0 in the final,
 
 Six pages, one FastAPI backend:
 
-- **Overview** — a champion-plus-model-call hero. Pulls the final fixture, shows the real result with the champion highlighted, and runs the model's own three-way prediction for that match so the two sit side by side.
-- **Fixtures** — all 104 group and knockout matches, paginated, with a champion panel summarizing the winner's full run to the trophy (results, goals, knockout road).
-- **Group Stage** — all 12 groups with live ESPN standings, expandable to each group's fixtures.
-- **Tournament Bracket** — the full 32-match knockout tree from Round of 32 to final, plus a three-place podium (runner-up, champion, third).
-- **Custom Match** — pick any two of the 48 nations and get a live model prediction, independent of the real schedule.
-- **Team Page** — squad, news, and fixture history for a given team, keyed by ESPN team ID.
+- **Overview**: a champion-plus-model-call hero. Pulls the final fixture, shows the real result with the champion highlighted, and runs the model's own three-way prediction for that match so the two sit side by side.
+- **Fixtures**: all 104 group and knockout matches, paginated, with a champion panel summarizing the winner's full run to the trophy (results, goals, knockout road).
+- **Group Stage**: all 12 groups with live ESPN standings, expandable to each group's fixtures.
+- **Tournament Bracket**: the full 32-match knockout tree from Round of 32 to final, plus a three-place podium (runner-up, champion, third).
+- **Custom Match**: pick any two of the 48 nations and get a live model prediction, independent of the real schedule.
+- **Team Page**: squad, news, and fixture history for a given team, keyed by ESPN team ID.
 
 Every page that shows a prediction is drawing from the same `/predict` endpoint, so the model's logic lives in exactly one place.
 
@@ -78,6 +78,7 @@ A few things worth knowing about how this was built, beyond what the code shows:
 
 - **The bracket's slot numbers are opaque by design.** ESPN's Round of 32 slot numbering doesn't follow fixture ID or date order, and there's no way to derive it. The bracket structure is hardcoded from ESPN's own UI. Quarterfinals and semifinals don't need this, since those rounds do follow date order.
 - **Status classification is an allowlist, not an exclusion list.** ESPN's match-status enum isn't a documented closed set. Instead of assuming "anything that isn't final or scheduled must be live," both the backend and frontend list the known live-phase statuses explicitly, so an unexpected status (postponed, canceled) doesn't get misreported as a match in progress.
+- **Built to fail loudly against an API it doesn't control.** Months after the tournament, ESPN started rejecting date-range queries on its scoreboard with a 400. The original code read the response without checking the status, so every fixture endpoint quietly returned an empty list instead of an error. The fix replaced two range requests with a single season-wide request, split group and knockout fixtures by ESPN's round field rather than by date, and added status checks so the next upstream change surfaces as an error instead of an empty app.
 
 ---
 
