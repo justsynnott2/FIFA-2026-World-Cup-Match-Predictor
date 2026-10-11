@@ -2,7 +2,8 @@ import requests
 from cache import _get_cached
 
 # ESPN scoreboard/standings client: fetches raw ESPN data, flattens it into the
-# shape the frontend expects, and caches both fetches at a 30s TTL. Exports:
+# shape the frontend expects, and caches the scoreboard and standings fetches at
+# a 30s TTL. Exports:
 # get_group_stage_fixtures, get_knockout_fixtures, get_all_fixtures,
 # get_live_fixtures, get_upcoming_fixtures, get_recent_results, get_standings.
 
@@ -10,9 +11,9 @@ from cache import _get_cached
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
 ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings"
 
-# Date range covering the full group stage
-GROUP_STAGE_DATE_RANGE = "20260611-20260627"
-KNOCKOUT_DATE_RANGE = "20260628-20260719"
+# Season passed as the scoreboard's dates param - returns all 104 tournament
+# events in one request (ESPN rejects YYYYMMDD-YYYYMMDD ranges with a 400)
+SEASON = "2026"
 
 #ESPN MATCH STATUSES
 STATUS_UPCOMING = {'STATUS_SCHEDULED'}
@@ -90,16 +91,10 @@ def _normalize_event(raw_event):
     }
 
 
-def _fetch_group_stage():
-    """Hits ESPN's scoreboard for the group-stage date range and normalizes every event."""
-    response = requests.get(ESPN_BASE, params={'dates': GROUP_STAGE_DATE_RANGE, 'limit': 100})
-    raw_events = response.json().get('events', [])
-    return [_normalize_event(e) for e in raw_events]
-
-
-def _fetch_knockout():
-    """Hits ESPN's scoreboard for the knockout date range and normalizes every event."""
-    response = requests.get(ESPN_BASE, params={'dates': KNOCKOUT_DATE_RANGE, 'limit': 100})
+def _fetch_scoreboard():
+    """Hits ESPN's scoreboard for the whole season and normalizes every event. Raises on a non-200 response."""
+    response = requests.get(ESPN_BASE, params={'dates': SEASON, 'limit': 200})
+    response.raise_for_status()
     raw_events = response.json().get('events', [])
     return [_normalize_event(e) for e in raw_events]
 
@@ -111,17 +106,21 @@ def _fetch_knockout():
 # (computeDelay in Fixtures.jsx, 30s-5min depending on match state) — either
 # one alone would be enough to protect ESPN, but together they mean a burst of
 # simultaneous frontend tabs still only hits ESPN once per 30s.
+def _get_scoreboard():
+    """Returns every normalized scoreboard event, cached at 30s TTL."""
+    return _get_cached('scoreboard', ttl_seconds=30, fetch_fn=_fetch_scoreboard)
+
 def get_group_stage_fixtures():
-    """Returns all group stage fixtures cached at 30s TTL."""
-    return _get_cached('group_stage_fixtures', ttl_seconds=30, fetch_fn=_fetch_group_stage)
+    """Returns all 72 group stage fixtures (round 'group-stage'), filtered from the cached scoreboard."""
+    return [f for f in _get_scoreboard() if f['round'] == 'group-stage']
 
 def get_knockout_fixtures():
-    """Returns all knockout stage fixtures cached at 30s TTL."""
-    return _get_cached('knockout_fixtures', ttl_seconds=30, fetch_fn=_fetch_knockout)
+    """Returns all 32 knockout stage fixtures (every round other than 'group-stage'), filtered from the cached scoreboard."""
+    return [f for f in _get_scoreboard() if f['round'] != 'group-stage']
 
 def get_all_fixtures():
-    """Returns all 104 World Cup fixtures merged and sorted by date. Not separately cached — sources are."""
-    return sorted(get_group_stage_fixtures() + get_knockout_fixtures(), key=lambda f: f['date'])
+    """Returns all 104 World Cup fixtures sorted by date. Not separately cached — the scoreboard is."""
+    return sorted(_get_scoreboard(), key=lambda f: f['date'])
 
 def get_live_fixtures():
     """Returns all fixtures currently in progress (status in the STATUS_LIVE allowlist)."""
@@ -137,8 +136,9 @@ def get_recent_results():
 
 
 def _fetch_standings():
-    """Hits ESPN's standings endpoint and flattens each group's entries into the shape the frontend expects."""
+    """Hits ESPN's standings endpoint and flattens each group's entries into the shape the frontend expects. Raises on a non-200 response."""
     response = requests.get(ESPN_STANDINGS_URL)
+    response.raise_for_status()
     data = response.json()
     result = {}
     for group in data.get('children', []):
